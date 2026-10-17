@@ -869,6 +869,11 @@ body.page-flat .page { box-shadow: none; background: transparent; }
 .th-acc.on { border-color: var(--text); }
 .th-custom { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); margin-left: 6px; cursor: pointer; }
 .th-custom input { width: 30px; height: 28px; padding: 0; border: 0; background: none; cursor: pointer; }
+.gc-pick { display: flex; flex-direction: column; gap: 10px; }
+.gc-rings { display: flex; gap: 8px; flex-wrap: wrap; }
+.gc-ring { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 99px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
+.gc-ring i { width: 16px; height: 16px; border-radius: 50%; border: 3.5px solid var(--c); box-sizing: border-box; }
+.gc-ring.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 
 /* typing feel */
 .ty-try { border: 1px solid var(--line); border-radius: 10px; background: var(--page-bg, var(--paper)); padding: 10px 16px 14px; margin-bottom: 10px; }
@@ -1832,7 +1837,7 @@ body.writer .selbar .sb-full { display: none; }
 
 /* ---- Phone: a smaller set of tools, like Scrivener's iPhone app. iPad and computer keep everything. */
 html.m-phone #plan-nav button[data-v="cork"], html.m-phone #plan-nav button[data-v="mood"], html.m-phone #plan-nav button[data-v="timeline"],
-html.m-phone #rp-level, html.m-phone #btn-sprint, html.m-phone #btn-split { display: none !important; }
+html.m-phone #rp-level, html.m-phone #btn-sprint, html.m-phone #btn-split, html.m-phone #split-pane { display: none !important; }
 html.m-phone #st-session, html.m-phone #st-today { pointer-events: none; }
 
 /* find in chapter (web and phone): every match softly, the current one strongly */
@@ -1928,7 +1933,7 @@ body.tc-on .st-track { color: #15803d; font-weight: 600; }
 .ra-pos { min-width: 54px; text-align: center; opacity: .7; font-variant-numeric: tabular-nums; }
 .ra-bar select { height: 30px; border-radius: 99px; border: 1px solid rgba(255,255,255,.2); background: transparent; color: inherit; padding: 0 8px; font: inherit; max-width: 150px; }
 .ra-bar select option { color: #1f2a3c; }
-@media (max-width: 720px) { .ra-bar { bottom: calc(70px + env(safe-area-inset-bottom)); max-width: calc(100vw - 20px); } .ra-voice { display: none; } }
+@media (max-width: 720px) { .ra-bar { bottom: calc(70px + env(safe-area-inset-bottom)); max-width: calc(100vw - 20px); flex-wrap: wrap; justify-content: center; row-gap: 6px; border-radius: 24px; } .ra-bar .ra-voice { order: 10; flex: 1 1 100%; max-width: none; } }
 .rd-how { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: var(--paper); font-size: 13px; margin: 6px 0 4px; }
 .rd-how summary { cursor: pointer; }
 .rd-how ol { margin: 8px 0 6px; padding-left: 20px; } .rd-how li { margin: 3px 0; } .rd-how p { margin: 6px 0 0; color: var(--muted); }

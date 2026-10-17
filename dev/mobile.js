@@ -53,7 +53,13 @@ window.UnwipMobile = (function () {
     <button class="m-icon" id="m-more" aria-label="More">${IC.more}</button>`;
   ws.appendChild(pfoot);
   const click = sel => { const el = $(sel); if (el) el.click(); };
-  $('#m-back').onclick = () => { editor.blur(); showBinder(); };
+  // after "Open beside" (split view) on a phone, ‹ goes back to the chapter you came from
+  $('#m-back').onclick = async () => {
+    editor.blur();
+    const back = S.phoneReturn && U.findNode(S.phoneReturn) ? S.phoneReturn : null; S.phoneReturn = null;
+    if (back && !document.querySelector('#workspace .mp-view')) { await U.openDoc(back); showPage(); return; }
+    showBinder();
+  };
   $('#m-revise').onclick = () => click('#btn-revise');
   $('#m-cmdk').onclick = () => window.UnwipCommand && window.UnwipCommand.open();
   $('#m-stuck').onclick = () => click('#btn-stuck');
@@ -175,9 +181,17 @@ window.UnwipMobile = (function () {
   document.addEventListener('selectionchange', () => { if (root.classList.contains('m-editing')) fmtState(); });
   // keep the row glued to the top of the keyboard as it opens, closes and the page scrolls
   const vv = window.visualViewport;
+  // With a keyboard plugged in (or Bluetooth), the iPhone shows only its floating ^ v ✓ bar and doesn't tell the page
+  // it's there: the page stays full height, so our row ended up underneath it. While you're typing and no on-screen
+  // keyboard is open, lift the row above that bar.
+  const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const HW_BAR = 66;
   function placeBar() {
     if (!vv) return;
-    const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    let kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    const hw = IOS && kb < 30 && document.activeElement === editor && root.classList.contains('m-editing');
+    root.classList.toggle('m-hwkb', hw);
+    if (hw) kb += HW_BAR;
     fbar.style.transform = `translateY(${-kb}px)`;
     root.style.setProperty('--m-kb', kb + 'px');
   }
@@ -219,12 +233,25 @@ window.UnwipMobile = (function () {
   editor.addEventListener('focus', settleBar); editor.addEventListener('pointerup', settleBar);
   // typing mode only when you tap into the page (or type on a keyboard), not when Unwip moves the cursor itself
   let tappedAt = 0;
-  document.addEventListener('pointerdown', e => { tappedAt = editor.contains(e.target) ? Date.now() : 0; }, true);
+  let tappedAnyAt = 0;
+  document.addEventListener('pointerdown', e => { tappedAnyAt = Date.now(); tappedAt = editor.contains(e.target) ? Date.now() : 0; }, true);
   const startEditing = () => { if (!phone.matches || root.classList.contains('m-editing')) return; mark('m-editing', true); placeBar(); settleBar(); fmtState(); refreshHead(); setTimeout(fadeEdges, 50); };
   editor.addEventListener('focus', () => { if (Date.now() - tappedAt < 1500) startEditing(); });
   editor.addEventListener('pointerup', () => { if (document.activeElement === editor) startEditing(); });
   editor.addEventListener('keydown', startEditing);
-  editor.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== editor) { mark('m-editing', false); toggleFontSheet(false); } }, 120));
+  editor.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== editor) { mark('m-editing', false); toggleFontSheet(false); placeBar(); } }, 120));
+  // The iPhone's ^ and v buttons jump to the next box on the page. Behind the chapter that's the synopsis line under
+  // the title (Detail), which could be squashed flat, so you were left typing into a box you couldn't see with no way
+  // back. While you're writing, a jump like that (no tap, no key pressed) goes straight back to the page.
+  let lastKey = 0;
+  document.addEventListener('keydown', () => { lastKey = Date.now(); }, true);   // Tab, Ctrl+F and the like are yours
+  document.addEventListener('focusin', e => {
+    if (!phone.matches || e.target === editor || !root.classList.contains('m-editing')) return;
+    if (e.relatedTarget !== editor) return;
+    if (Date.now() - tappedAnyAt < 800 || Date.now() - lastKey < 800) return;
+    if (!e.target.matches || !e.target.matches('input, textarea, select, [contenteditable="true"]')) return;
+    setTimeout(() => { try { editor.focus({ preventScroll: true }); } catch { editor.focus(); } }, 0);
+  });
   let wordsT = null;   // counting a long chapter on every key is slow on a phone: count once typing pauses
   editor.addEventListener('input', () => { if (phone.matches) { clearTimeout(wordsT); wordsT = setTimeout(refreshWords, 250); } });
 
@@ -233,10 +260,12 @@ window.UnwipMobile = (function () {
   function refreshHead() {
     if (!S.project) return;
     $('#m-btitle').textContent = S.project.title || '';
-    const f = S.docId && U.findNode(S.docId);
+    const mapF = document.querySelector('#workspace .mp-view') && S.selectedId && U.findNode(S.selectedId);
+    const f = mapF && mapF.node.map ? mapF : S.docId && U.findNode(S.docId);
     $('#m-ptitle').textContent = S.view && S.view !== 'write' ? (VIEW_NAMES[S.view] || '') : f ? (f.node.title || 'Untitled') : '';
     const parent = f && f.parent ? f.parent : null;
-    $('#m-back-label').textContent = parent ? (parent.root && parent.kind === 'manuscript' ? 'Chapters' : parent.title || 'Back') : 'Chapters';
+    const backTo = S.phoneReturn && U.findNode(S.phoneReturn);
+    $('#m-back-label').textContent = backTo ? (backTo.node.title || 'Back').slice(0, 16) : parent ? (parent.root && parent.kind === 'manuscript' ? 'Chapters' : parent.title || 'Back') : 'Chapters';
     const l = siblings(), i = l.indexOf(S.docId);
     $('#m-prev').disabled = i <= 0; $('#m-next').disabled = i < 0 || i >= l.length - 1;
     $('#m-continue').hidden = !S.docId;
@@ -254,8 +283,9 @@ window.UnwipMobile = (function () {
     if (!row || e.target.closest('.tr-chev, .tr-add, input.rename')) return;
     if (S.longPress && Date.now() - S.longPress < 1500) return;   // the end of a press-and-hold opens the menu, not the page
     const f = U.findNode(row.dataset.id); if (!f) return;
+    S.phoneReturn = null;   // picked from the list yourself: ‹ goes back to the list
     if (f.node.type === 'doc') { if (S.view !== 'write') U.setView('write'); setTimeout(showPage, 60); }
-  });
+  }, true);   // before the row's own click: opening a map redraws the list, and the tapped row was gone by the time this ran
   // Detail level: Outline, Corkboard, Moodboard and Timeline open as a screen of their own
   const VIEW_NAMES = { outline: 'Outline' };
   // Corkboard, Moodboard and Timeline (plus sprints, goals and split view) stay on the iPad and computer
@@ -270,7 +300,7 @@ window.UnwipMobile = (function () {
   U.on('view', v => { if (phone.matches && !PHONE_VIEWS.includes(v)) { keepPhoneView(); return; } mark('m-plan', phone.matches && v !== 'write'); refreshHead(); });
   // a project opened from the main screen starts on its chapter list; Continue / Recently updated go straight to the page
   U.on('project', () => { if (!phone.matches) return; showBinder(); setTimeout(() => { if (S.lastPlace && S.lastPlace.slug === S.slug && S._continuing) showPage(); }, 0); });
-  U.on('leave', () => { mark('m-view-page', false); mark('m-view-binder', false); mark('m-editing', false); });
+  U.on('leave', () => { S.phoneReturn = null; mark('m-view-page', false); mark('m-view-binder', false); mark('m-editing', false); });
   setInterval(() => { if (phone.matches && S.project) refreshHead(); }, 1500);
   // Continue and Recently updated on the main screen mean "take me to the page"
   document.addEventListener('click', e => { if (e.target.closest('#btn-continue, .lr-item')) { S._continuing = true; setTimeout(() => { S._continuing = false; if (phone.matches && S.docId) showPage(); }, 1500); } }, true);

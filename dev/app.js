@@ -449,7 +449,7 @@
     try { const all = await api.listProjects(); S.allProjects = all; S.allDays = all.filter(p => p.slug !== slug).map(p => p.days || {}); } catch { S.allDays = []; S.allProjects = []; }
     project.stats.sprints = project.stats.sprints || [];
     scheduleNames(0);
-    if (project.splitId && findNode(project.splitId)) setTimeout(() => openSplit(project.splitId), 300);
+    if (project.splitId && findNode(project.splitId) && !document.documentElement.classList.contains('m-phone')) setTimeout(() => openSplit(project.splitId), 300);
     emit('project', project);
     clearInterval(S.backupTimer);
     S.backupTimer = setInterval(() => { if (S.slug && S.dirtySinceBackup) { api.backup(S.slug); S.dirtySinceBackup = false; } }, 10 * 60 * 1000);
@@ -765,7 +765,7 @@
       if (n.type === 'doc' && !n.map && window.UnwipSheets && root.kind !== 'manuscript' && root.kind !== 'trash') items.push({ label: 'Turn into separate sheets…', action: () => window.UnwipSheets.convert([n.id]) });
       if (n.type === 'doc' || n.type === 'folder') items.push({ label: 'Remove empty lines…', action: () => tidyBlankLines(n.id) });
       if (window.UnwipPageLinks && window.UnwipPageLinks.isPage(n.id) && level() >= 1) items.push({ label: 'Maps and pictures…', action: () => window.UnwipPageLinks.link(n.id) });
-      if (n.type === 'doc' && n.id !== S.docId) items.push({ label: 'Open in split view', action: () => { if (S.view !== 'write') setView('write'); openSplit(n.id); } });
+      if (n.type === 'doc' && n.id !== S.docId && !document.documentElement.classList.contains('m-phone')) items.push({ label: 'Open in split view', action: () => { if (S.view !== 'write') setView('write'); openSplit(n.id); } });
       if (n.type === 'doc' && !n.map && api.popoutOpen) items.push({ label: S.popped && S.popped.has(n.id) ? 'Show its window' : 'Open in a new window', action: () => popOut(n.id) });
       { const fn = findNode(n.id); const nx = fn.list[fn.index + 1];
         if (n.type === 'doc' && nx && nx.type === 'doc' && !nx.root) items.push({ label: `Merge with next (“${nx.title.length > 24 ? nx.title.slice(0, 24) + '…' : nx.title}”)…`, action: () => mergeWithNext(n.id) });
@@ -2995,6 +2995,7 @@
         <div class="section-label">You</div>
         <div class="field"><label>Author name (used on title pages and e-books)</label><input type="text" id="g-author" value="${esc(cfg.author || '')}" placeholder="e.g. Ima Novelist"></div>
         <div class="field"><label>Daily writing goal (all books)</label><input type="number" id="g-daily" min="0" step="50" value="${cfg.dailyGoal || ''}" placeholder="e.g. 1000"></div>
+        <div class="field full"><label>Goal colours (the rings on the main screen and in Goals)</label><div class="gc-pick" id="g-colors"></div></div>
         <label class="check full"><input type="checkbox" id="g-quotes" ${cfg.quotes !== false ? 'checked' : ''}> Show quotes from writers (front page, writer mode, sprints, goals)</label>
         <div class="section-label">Appearance</div>
         <div class="field"><label>Theme and colours</label><button class="btn" id="s-themes" type="button">Themes &amp; colours…</button></div>
@@ -3038,6 +3039,21 @@
     });
     $('#s-import', body).onclick = importFonts;
     $('#s-bookfont', body).onclick = () => { if (!S.project) return toast('Open a book first, then choose its font here (you can apply it to every book from there).'); body.closest('.modal-back').remove(); window.UnwipBookFont && window.UnwipBookFont.open(); };
+    // goal colours: pick a ring, then its colour (like the accent colour in Themes); saved with Save
+    const gcDraft = Object.assign({}, cfg.goalColors || {}); let gcKey = 'today';
+    const GC_NAMES = { today: 'Today', week: 'This week', book: 'Manuscript' };
+    const gcCol = k => gcDraft[k] || GOAL_DEFAULT[k] || 'var(--accent)';
+    const drawGC = () => {
+      const box = $('#g-colors', body); if (!box) return;
+      const cur = gcDraft[gcKey] || '';
+      box.innerHTML = `<div class="gc-rings">${Object.keys(GC_NAMES).map(k => `<button type="button" class="gc-ring ${k === gcKey ? 'on' : ''}" data-k="${k}"><i style="--c:${gcCol(k)}"></i>${GC_NAMES[k]}</button>`).join('')}</div>
+        <div class="th-accents"><button type="button" class="th-acc def ${!cur ? 'on' : ''}" data-a="" title="This ring's own colour">Auto</button>${GOAL_SWATCHES.map(a => `<button type="button" class="th-acc ${cur === a ? 'on' : ''}" data-a="${a}" style="--a:${a}" title="${a}"></button>`).join('')}
+          <label class="th-custom" title="Pick any colour"><input type="color" id="gc-color" value="${/^#[0-9a-f]{6}$/i.test(gcCol(gcKey)) ? gcCol(gcKey) : '#34528a'}"> Custom</label></div>`;
+      box.querySelectorAll('.gc-ring').forEach(b => b.onclick = () => { gcKey = b.dataset.k; drawGC(); });
+      box.querySelectorAll('.th-acc').forEach(b => b.onclick = () => { if (b.dataset.a) gcDraft[gcKey] = b.dataset.a; else delete gcDraft[gcKey]; drawGC(); });
+      $('#gc-color', box).oninput = e => { gcDraft[gcKey] = e.target.value; box.querySelector('.gc-ring.on i').style.setProperty('--c', e.target.value); box.querySelectorAll('.th-acc').forEach(x => x.classList.remove('on')); };
+    };
+    drawGC();
     $('#s-themes', body).onclick = () => window.UnwipLook && window.UnwipLook.openThemes();
     $('#s-typing', body).onclick = () => window.UnwipLook && window.UnwipLook.openTyping();
     if ($('#s-dict', body)) $('#s-dict', body).onclick = dictionaryDialog;
@@ -3054,7 +3070,7 @@
     const ok = await modal({ title: 'Settings', body, wide: true, buttons: [{ label: 'Cancel', value: false, kind: 'ghost' }, { label: 'Save', value: true, kind: 'primary' }] });
     if (!ok) return;
     const v = id => $('#' + id, body).value, c = id => $('#' + id, body).checked;
-    S.settings = await api.setSettings({ author: v('g-author').trim(), dailyGoal: Math.max(0, +v('g-daily') || 0), quotes: c('g-quotes'), autoUpdate: c('g-autoup') });
+    S.settings = await api.setSettings({ author: v('g-author').trim(), dailyGoal: Math.max(0, +v('g-daily') || 0), goalColors: gcDraft, quotes: c('g-quotes'), autoUpdate: c('g-autoup') });
     try { localStorage.setItem('folio-ac', JSON.stringify({ on: c('s-ac'), min: +v('s-acmin') })); } catch {}
     try { localStorage.setItem('folio-dash', c('s-dash') ? 'on' : 'off'); } catch {}
     const langSel = $('#s-lang', body);
@@ -3708,6 +3724,10 @@
     try { await navigator.clipboard.writeText(n); } catch { try { await api.clipboardWrite(n, n); } catch {} }
     toast(`Copied ${fmt(+n)}.`, '', 2000);
   });
+  // the goal rings' colours (Settings › Goal colours); empty = the ring's own colour
+  const GOAL_DEFAULT = { today: '', week: '#7a5cc7', book: '#c27a2c' };
+  const GOAL_SWATCHES = ['#34528a', '#2f7a5b', '#7a5cc7', '#c27a2c', '#a84a5c', '#b4423a', '#1f7a8c', '#c27c0e', '#5c6b2f', '#444444'];
+  const goalColor = k => (((S.settings || {}).goalColors || {})[k]) || GOAL_DEFAULT[k] || '';
   function dial({ pct, big, small, label, color, size = 132, track = 11 }) {
     const r = (size - track) / 2, c = 2 * Math.PI * r;
     const p = Math.max(0, Math.min(1, pct || 0));
@@ -3760,9 +3780,9 @@
     const body = document.createElement('div');
     body.innerHTML = `
       <div class="dial-row">
-        ${dial({ pct: daily ? todayW / daily : 0, big: fmt(todayW), small: daily ? `of ${fmt(daily)}` : 'words', label: `Today <button type="button" class="dial-copy" data-copy="${todayW}" title="Copy today’s word count (${todayW}), to paste into a spreadsheet or a chat"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>` })}
-        ${dial({ pct: daily ? week / (daily * 7) : 0, big: fmt(week), small: daily ? `of ${fmt(daily * 7)}` : 'words', label: 'This week', color: '#7a5cc7' })}
-        ${dial({ pct: g.total ? total / g.total : 0, big: g.total ? Math.floor(total / g.total * 100) + '%' : fmt(total), small: g.total ? `${fmt(total)} / ${fmt(g.total)}` : 'words', label: 'Manuscript', color: '#c27a2c' })}
+        ${dial({ pct: daily ? todayW / daily : 0, big: fmt(todayW), small: daily ? `of ${fmt(daily)}` : 'words', label: `Today <button type="button" class="dial-copy" data-copy="${todayW}" title="Copy today’s word count (${todayW}), to paste into a spreadsheet or a chat"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>`, color: goalColor('today') })}
+        ${dial({ pct: daily ? week / (daily * 7) : 0, big: fmt(week), small: daily ? `of ${fmt(daily * 7)}` : 'words', label: 'This week', color: goalColor('week') })}
+        ${dial({ pct: g.total ? total / g.total : 0, big: g.total ? Math.floor(total / g.total * 100) + '%' : fmt(total), small: g.total ? `${fmt(total)} / ${fmt(g.total)}` : 'words', label: 'Manuscript', color: goalColor('book') })}
         <div class="stat-stack">
           <div class="stat-card flame"><span class="ic">${I.flame}</span><b>${st.current}</b><span>${st.current ? `day streak<br><small>best ${st.best}</small>` : st.best ? `day streak<br><small>best ${st.best} · write today to start again</small>` : `day streak<br><small>write today to start one</small>`}</span></div>
           <button type="button" class="stat-card bolt" id="g-sprints" title="See every sprint"><span class="ic">${I.bolt}</span><b>${bestWpm || '–'}</b><span>best sprint wpm<br><small>${sprints.length} sprints${avgWpm ? ` · avg ${avgWpm}` : ''} ›</small></span></button>
@@ -3805,8 +3825,8 @@
         ${lp.snippet ? `<span class="cc-snip">…${esc(lp.snippet.slice(-80))}<i class="cc-caret"></i></span>` : ''}
       </button>` : '') + `
       <div class="dash-card dials">
-        ${dial({ pct: daily ? todayW / daily : 0, big: fmt(todayW), small: daily ? `of ${fmt(daily)}` : 'words', label: `Today <button type="button" class="dial-copy" data-copy="${todayW}" title="Copy today’s word count (${todayW}), to paste into a spreadsheet or a chat"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>`, size: 120 })}
-        ${dial({ pct: daily ? week / (daily * 7) : 0, big: fmt(week), small: daily ? `of ${fmt(daily * 7)}` : 'words', label: 'This week', color: '#7a5cc7', size: 120 })}
+        ${dial({ pct: daily ? todayW / daily : 0, big: fmt(todayW), small: daily ? `of ${fmt(daily)}` : 'words', label: `Today <button type="button" class="dial-copy" data-copy="${todayW}" title="Copy today’s word count (${todayW}), to paste into a spreadsheet or a chat"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>`, color: goalColor('today'), size: 120 })}
+        ${dial({ pct: daily ? week / (daily * 7) : 0, big: fmt(week), small: daily ? `of ${fmt(daily * 7)}` : 'words', label: 'This week', color: goalColor('week'), size: 120 })}
         <div class="stat-stack">
           <div class="stat-card flame"><span class="ic">${I.flame}</span><b>${st.current}</b><span>${st.current ? `day streak<br><small>best ${st.best}</small>` : st.best ? `day streak<br><small>best ${st.best} · write today to start again</small>` : `day streak<br><small>write today to start one</small>`}</span></div>
           <div class="stat-card"><span class="ic">${I.book}</span><b>${fmt(totalWords)}</b><span>words in your manuscripts<br><small>${totalWords ? `≈ ${fmt(Math.max(1, Math.round(totalWords / 280)))} paperback page${Math.max(1, Math.round(totalWords / 280)) === 1 ? '' : 's'}` : 'nothing written yet'}</small></span></div>
@@ -4264,7 +4284,7 @@
     document.body.classList.toggle('in-mood', v === 'mood');
     if (v !== 'write' && S.revise) setRevise(false);
     // back to the chapter: show what the outline or corkboard changed (synopsis and title)
-    if (v === 'write' && S.docId) { const f = findNode(S.docId); if (f) { const sy = $('#doc-synopsis'); if (sy && document.activeElement !== sy) { sy.value = f.node.synopsis || ''; requestAnimationFrame(() => { sy.style.height = 'auto'; sy.style.height = sy.scrollHeight + 'px'; }); } const t = $('#doc-title'); if (t && document.activeElement !== t && 'value' in t && t.value !== (f.node.title || '')) t.value = f.node.title || ''; } }
+    if (v === 'write' && S.docId) { const f = findNode(S.docId); if (f) { const sy = $('#doc-synopsis'); if (sy && document.activeElement !== sy) { sy.value = f.node.synopsis || ''; requestAnimationFrame(() => { sy.style.height = 'auto'; const h = sy.scrollHeight; sy.style.height = h ? h + 'px' : ''; }); } const t = $('#doc-title'); if (t && document.activeElement !== t && 'value' in t && t.value !== (f.node.title || '')) t.value = f.node.title || ''; } }
     if (v === 'outline') renderOutline();
     if (v === 'cork') renderCork();
     if (v === 'mood') renderMood();
@@ -4275,7 +4295,11 @@
 
   // synopsis under the title (detailed mode)
   const synopsis = $('#doc-synopsis');
-  function fitSynopsis() { synopsis.style.height = 'auto'; synopsis.style.height = synopsis.scrollHeight + 'px'; }
+  // measured while hidden (Focus, or the phone's chapter list), scrollHeight is 0 and the line was squashed flat
+  function fitSynopsis() { synopsis.style.height = 'auto'; const h = synopsis.scrollHeight; synopsis.style.height = h ? h + 'px' : ''; }
+  synopsis.addEventListener('focus', fitSynopsis);
+  // and measured again once it's on screen (a phone opens the chapter before showing its page) or its width changes
+  if (window.ResizeObserver) { let w = 0; new ResizeObserver(() => { const nw = synopsis.clientWidth; if (nw && nw !== w) { w = nw; fitSynopsis(); } }).observe(synopsis); }
   synopsis.addEventListener('input', () => { const f = findNode(S.docId); if (!f) return; f.node.synopsis = synopsis.value; fitSynopsis(); scheduleMeta(); });
   synopsis.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); editor.focus(); } });
 
@@ -4381,6 +4405,16 @@
     const on = list.querySelector('.sp-mi.on'); if (on) on.scrollIntoView({ block: 'center' });
   }
   async function openSplit(id) {
+    // a phone is too small for two pages side by side: open the other one as its own page instead, and ‹ comes back
+    if (document.documentElement.classList.contains('m-phone')) {
+      if (!id || id === S.docId || !findNode(id)) return;
+      const from = S.docId;
+      if (S.view !== 'write') setView('write');
+      await openDoc(id);
+      S.phoneReturn = from && from !== id ? from : null;
+      if (window.UnwipMobile) window.UnwipMobile.showPage();
+      return;
+    }
     await flushSplit();
     if (!id) {   // pick something useful: first character sheet, else first note, else next chapter
       const pick = k => { const r = S.project.binder.find(x => x.kind === k); let f = null; if (r) walkTree(r.children || [], n => { if (n.type === 'doc' && n.id !== S.docId) { f = n.id; return false; } }); return f; };

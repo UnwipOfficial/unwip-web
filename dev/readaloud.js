@@ -145,6 +145,11 @@ window.UnwipRead = (function () {
     bar.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b) return; ({ prev: () => jump(-1), next: () => jump(1), play: () => (playing ? pause() : resume()), stop })[b.dataset.a](); });
     $('.ra-rate', bar).onchange = e => { rate = +e.target.value; SET('rate', rate); if (playing) { halt(); speak(); } else prepare(); };
     $('.ra-voice', bar).onchange = async e => {
+      if (e.target.value === 'help:ios') {
+        fillVoices();
+        U.modal({ title: 'More voices', body: '<p>Your iPhone or iPad has better voices you can download for free. Open <b>Settings › Accessibility › Read &amp; Speak › Voices</b>, choose English, and download one (Enhanced or Premium sound the most natural).</p><p class="hint">Then come back to Unwip and pick it here. If it doesn’t show up straight away, close Unwip and open it again.</p>', buttons: [{ label: 'OK', value: true, kind: 'primary' }] });
+        return;
+      }
       if (e.target.value === 'k:get') { // set up the natural voice first
         const was = playing; pause(); const ok = NV() && await NV().setup();
         if (ok) { voiceName = 'k:bf_emma'; SET('voice', voiceName); } fillVoices(); if (ok && was) resume(); return;
@@ -162,7 +167,10 @@ window.UnwipRead = (function () {
     const nat = !nv ? '' : nv.installed
       ? `<optgroup label="Natural voices (Kokoro)">${nv.VOICES.map(([id, n, acc]) => `<option value="k:${id}" ${voiceName === 'k:' + id ? 'selected' : ''}>${esc(n)} · ${esc(acc)}</option>`).join('')}</optgroup>`
       : '<option value="k:get">Natural voice… (optional download)</option>';
-    sel.innerHTML = (own ? `<optgroup label="This device’s voices">${own}</optgroup>` : '<option value="">Default voice</option>') + nat;
+    // the iPhone and iPad keep their better voices as downloads in Settings; a web page can't fetch them itself
+    const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const more = IOS ? '<option value="help:ios">More voices…</option>' : '';
+    sel.innerHTML = (own ? `<optgroup label="This device’s voices">${own}</optgroup>` : '<option value="">Default voice</option>') + nat + more;
     sel.hidden = false;
   }
   if (window.speechSynthesis) speechSynthesis.addEventListener && speechSynthesis.addEventListener('voiceschanged', fillVoices);
