@@ -119,7 +119,7 @@ window.UnwipAddTo = (function () {
     }
     await api.saveDoc(S.slug, id, box.innerHTML);
     delete S.unsaved[`${S.slug}:${id}`];
-    f.node.words = U.countWords(box.innerText || box.textContent || ''); f.node.mod = Date.now(); f.node.dev = S.device || '';
+    f.node.words = U.countWords(box.innerText || box.textContent || ''); f.node.mod = Date.now(); f.node.dev = S.device || ''; f.node.devId = S.deviceId || '';
     U.scheduleMeta(); U.renderBinder();
     if (S.splitId === id) await U.openSplit(id);
     U.toastAction(`Added to <b>${esc(f.node.title || 'the page')}</b>${head ? ` under ${esc(under.value)}` : ''}.`, 'Open beside', () => { if (S.view !== 'write') U.setView('write'); U.openSplit(id); }, 8000);

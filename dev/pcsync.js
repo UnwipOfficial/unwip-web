@@ -54,7 +54,7 @@ window.UnwipPCSync = (function () {
         // the main screen: read the books again, and find the last change another device made
         await U.showLibrary();
         const list = await api.listProjects();
-        latest = list.filter(b => b.dev && S.device && b.dev !== S.device).sort((a, b) => b.modified - a.modified)[0] || null;
+        latest = list.filter(b => b.dev && !U.isMine(b.dev, b.devId)).sort((a, b) => b.modified - a.modified)[0] || null;
       }
       await refresh();
     } catch {}

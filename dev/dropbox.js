@@ -39,6 +39,7 @@ window.UnwipDropbox = (function () {
   // every save marks the file as changed, and a sync follows a few seconds later
   const origWrite = FS.write, origRemove = FS.remove;
   const dirty = new Set();
+  const dropping = new Set();   // books being deleted everywhere (lowercase names): a running sync stops uploading them
   const changed = p => {
     if (!p.startsWith(LOCAL)) return; const rel = p.slice(LOCAL.length); dirty.add(rel.toLowerCase());
     if (tracked(rel) && st) {
@@ -57,8 +58,17 @@ window.UnwipDropbox = (function () {
   // when another device has changed something
   const auto = () => !!(st && st.auto);
   let news = false;
+  // an import writes a book file by file: syncing waits until it's finished, then sends the whole book in one go
+  // (it used to start part-way, finish, and start again, so the "left" count went down and back up)
+  let holds = 0, heldBack = false;
+  async function hold(fn) {
+    holds++;
+    try { return await fn(); }
+    finally { if (--holds === 0 && heldBack) { heldBack = false; firstDirtyAt = 0; soon(); } }
+  }
   function soon() {
     if (!connected() || !auto()) return;
+    if (holds) { heldBack = true; return; }
     if (!firstDirtyAt) firstDirtyAt = Date.now();
     clearTimeout(soonT);
     const wait = Date.now() - firstDirtyAt > 20000 ? 0 : 4000;   // a pause in typing, or at least every 20 seconds
@@ -241,11 +251,16 @@ window.UnwipDropbox = (function () {
     await binDeletedElsewhere(remote, local);
     const keys = [...new Set([...Object.keys(remote), ...Object.keys(local), ...Object.keys(st.records)])]
       .sort((a, b) => (/^[^/]+\/project\.json$/.test(b) ? 1 : 0) - (/^[^/]+\/project\.json$/.test(a) ? 1 : 0) || (/\/docs\//.test(b) ? 1 : 0) - (/\/docs\//.test(a) ? 1 : 0));
-    const todo = keys.length; let done = 0; progress = { phase: 'files', done, todo, down: 0, up: 0 }; renderSoon();
+    // "left" counts only files with something to do: unchanged ones on both sides are skipped in a moment and used to
+    // make the number jump up at the start of every sync
+    const idle = k => { const rec = st.records[k]; return !!(local[k] && remote[k] && rec && rec.hash && !changedNow.has(k) && rec.rev === remote[k].rev); };
+    const todo = keys.filter(k => !idle(k) && !dropping.has(k.split('/')[0])).length; let done = 0; progress = { phase: 'files', done, todo, down: 0, up: 0 }; renderSoon();
     const touched = new Set();
     const one = async k => {
+      if (dropping.has(k.split('/')[0])) return;   // a book being deleted everywhere: the rest of its upload is skipped
       const R = remote[k], L = local[k], rec = st.records[k];
-      progress.done = ++done; renderSoon();
+      if (idle(k)) return;   // nothing happened on either side
+      progress.done = Math.min(todo, ++done); renderSoon();
       if (done % 40 === 0) { await persist(); if (touched.size) { tell(touched); touched.clear(); } }   // a closed app or lost signal picks up from here
       let lb = null, lh = null;
       if (L) {
@@ -513,14 +528,24 @@ window.UnwipDropbox = (function () {
   };
   F.deleteChoices = async slug => inDropbox(slug) ? { note: `It’s also in Dropbox. Delete it on this ${DEVICE} only (it stays on your PC and other devices), or everywhere (they keep it in their Deleted books).`, buttons: [`This ${DEVICE} only`, 'Everywhere'] } : null;
   F.deleteProject = async (slug, opts = {}) => {
-    const synced = inDropbox(slug);
-    if (synced) await sync().catch(() => {});                 // whatever was written last goes to Dropbox first
-    await origDelete(slug);
+    const synced = inDropbox(slug), low = String(slug).toLowerCase();
+    if (synced && opts.how === 1) {
+      // deleted everywhere: nothing of it needs to reach Dropbox first. A sync that's still uploading it (a big book
+      // just imported) skips the rest of it, and only the files already on their way are waited for (seconds, not minutes)
+      dropping.add(low);
+      try { if (running) await running.p.catch(() => {}); } catch {}
+    } else if (synced) {
+      // deleted on this device only: the other devices keep it, so Dropbox gets the latest of it first
+      if (running && window.__unwip) window.__unwip.toast('Sending this book’s latest changes to Dropbox first, so your other devices keep it. It’s deleted here as soon as that’s done.');
+      await sync().catch(() => {});
+    }
+    try { await origDelete(slug); } finally { if (!(synced && opts.how === 1)) dropping.delete(low); }
     if (synced && opts.how === 1) {
       const pre = String(slug).toLowerCase() + '/';
       for (const k of Object.keys(st.records)) if (k.startsWith(pre)) delete st.records[k];
       await persist();
       const r = await rpc('/files/move_v2', { from_path: `${REMOTE}/${slug}`, to_path: `${REMOTE}/_Deleted/${Date.now()} ${slug}`, autorename: true, allow_ownership_transfer: false });
+      dropping.delete(low);
       if (!r.ok && r.status !== 409) throw new Error('Deleted here, but Dropbox couldn’t be told (' + r.status + '). Try again later from Deleted books.');
     }
     st.localOnly = st.localOnly.filter(x => x.toLowerCase() !== String(slug).toLowerCase()); await persist();
@@ -768,6 +793,6 @@ window.UnwipDropbox = (function () {
     } catch {}
   }
 
-  return { connect, disconnect, sync, check, render, fillCard, connected: () => connected(), get state() { return st; }, get lastError() { return lastError; }, hasKey: !!KEY,
+  return { connect, disconnect, sync, check, render, fillCard, hold, get progress() { return progress; }, connected: () => connected(), get state() { return st; }, get lastError() { return lastError; }, hasKey: !!KEY,
     signIn: { b64url, standalone, redirectUri, pkce, authorizeURL, exchange, refreshRequest } };
 })();

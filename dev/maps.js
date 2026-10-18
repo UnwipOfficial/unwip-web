@@ -45,7 +45,7 @@ window.UnwipMaps = (function () {
     async write(id, json) {
       const r = this.ref(id);
       if (r) await window.UnwipBuild.writeMap(r, json, thumb()); else await api.saveDoc(S.slug, id, json);
-      const f = U.findNode(id); if (f) { f.node.mod = Date.now(); f.node.dev = S.device || ''; U.scheduleMeta(); }
+      const f = U.findNode(id); if (f) { f.node.mod = Date.now(); f.node.dev = S.device || ''; f.node.devId = S.deviceId || ''; U.scheduleMeta(); }
     },
     title: id => { const f = U.findNode(id); return f ? f.node.title : 'Map'; },
     mount: v => { const ew = $('#editor-wrap'); ew.classList.add('hidden'); ew.after(v); },

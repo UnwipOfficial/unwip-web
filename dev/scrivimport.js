@@ -142,6 +142,7 @@ window.UnwipScriv = (function () {
   }
 
   // ---- 3. import into a new project
+  // Dropbox waits until the whole book is written (app.js holdSync)
   async function importNow(data, rows, v) {
     const map = {}; for (const r of rows) map[r.key] = r.on ? r.target : 'skip';
     if (v.mem) {
@@ -227,6 +228,7 @@ window.UnwipScriv = (function () {
         </ul></div>`, buttons: [{ label: 'Start writing', value: true, kind: 'primary' }] });
     if (window.UnwipSheets) await window.UnwipSheets.offerAfterImport().catch(() => {});
   }
+  { const raw = importNow; importNow = (...a) => (U.holdSync ? U.holdSync(() => raw(...a)) : raw(...a)); }
 
   return { start, TARGETS, _test: { importNow } };
 })();

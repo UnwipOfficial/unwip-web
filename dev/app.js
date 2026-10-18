@@ -49,7 +49,14 @@
     lastRange: null, sessionTyped: 0, lastDocWords: 0, programmatic: false,
     saveTimer: null, metaTimer: null, dirty: false, backupTimer: null, plainPaste: false,
     pendingSize: null
-  };
+  };  // which device this is: a hidden ID kept on this device. The device's name ("iPad", "Workhorse") is only for showing:
+  // two iPhones share a name, and an iPhone set to "Request Desktop Website" calls itself an iPad
+  S.deviceId = (() => { try { let id = localStorage.getItem('unwip-device-id'); if (!id) { id = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); localStorage.setItem('unwip-device-id', id); } return id; } catch { return ''; } })();
+  // was this changed on this device? By ID where it was recorded, by name only for changes saved before IDs existed
+  const isMine = (dev, devId) => devId && S.deviceId ? devId === S.deviceId : !!(dev && S.device && dev === S.device);
+  // "this iPad", "this iPhone", or "this computer"
+  const hereName = () => /^(iPad|iPhone|Android)$/.test(S.device || '') ? 'this ' + S.device : 'this computer';
+
   // small event bus so the add-on modules (notes.js, stuck.js, look.js) can follow along
   const HOOKS = {};
   function on(name, fn) { (HOOKS[name] = HOOKS[name] || []).push(fn); }
@@ -241,7 +248,7 @@
         ${pace ? `<div class="pc-pace">${esc(pace)}</div>` : ''}
         ${p.elsewhere ? `<div class="pc-elsewhere" title="Another device changed this book since this ${esc(window.folio.__device || 'device')} last synced. Opening it brings the changes in first.">⚠ Changed on another device</div>` : ''}
         ${p.unsynced ? `<div class="pc-unsynced" title="This book has changes on this ${esc(p.unsynced)} that aren’t in Dropbox yet. Press Sync to send them.">● Not synced yet</div>` : ''}
-        <div class="pc-meta">${fmt(p.words)}${goal ? ' / ' + fmt(goal) : ''} words · ${when}${p.dev && S.device && p.dev !== S.device ? ` · on ${esc(p.dev)}` : ''}</div><button class="icon-btn small pc-more" title="More">${I.dots}</button>`;
+        <div class="pc-meta">${fmt(p.words)}${goal ? ' / ' + fmt(goal) : ''} words · ${when}${p.dev && !isMine(p.dev, p.devId) ? ` · on ${esc(p.dev)}` : ''}</div><button class="icon-btn small pc-more" title="More">${I.dots}</button>`;
       card.onclick = e => { if (!e.target.closest('.pc-more')) openBook(p); };
       $('.pc-more', card).onclick = e => {
         e.stopPropagation();
@@ -1501,7 +1508,7 @@
     const id = S.docId;
     const html = editor.innerHTML;
     const f = findNode(id);
-    if (f) { f.node.words = countWords(editorText()); f.node.mod = Date.now(); f.node.dev = S.device || ''; }
+    if (f) { f.node.words = countWords(editorText()); f.node.mod = Date.now(); f.node.dev = S.device || ''; f.node.devId = S.deviceId || ''; }
     if (S.loadedHTML && S.loadedHTML !== html) autoSnapshotIfNeeded(id, S.loadedHTML).catch(() => {});
     const slug = S.slug, ukey = `${slug}:${id}`;
     try { await api.saveDoc(slug, id, html); delete S.unsaved[ukey]; if (pending.delete(`doc:${slug}:${id}`) && !pending.size) { troubleRetry = null; saveTrouble(null); } }
@@ -1530,7 +1537,7 @@
   function scheduleMeta() { clearTimeout(S.metaTimer); S.metaTimer = setTimeout(() => saveMetaNow().catch(() => {}), 600); }
   async function saveMetaNow() {
     clearTimeout(S.metaTimer); S.metaTimer = null; if (!S.slug) return;
-    S.project.totalWords = manuscriptWords(); S.project.lastDevice = S.device || S.project.lastDevice;
+    S.project.totalWords = manuscriptWords(); S.project.lastDevice = S.device || S.project.lastDevice; S.project.lastDeviceId = S.deviceId || S.project.lastDeviceId;
     try { await api.saveProjectMeta(S.slug, S.project); saveTrouble(null); }
     catch (e) {
       const msg = String(e && e.message || e);
@@ -4191,6 +4198,10 @@
     toast(`Imported ${items.length} document${items.length === 1 ? '' : 's'} from ${esc(file.name)}.`);
   }
   // the three-step Scrivener import lives in scrivimport.js
+  // imports run with Dropbox syncing held back until the whole book is written (dropbox.js hold)
+  const holdSync = fn => window.UnwipDropbox && window.UnwipDropbox.hold ? window.UnwipDropbox.hold(fn) : fn();
+  { const raw = importWordProject; importWordProject = (...a) => holdSync(() => raw(...a)); }
+  { const raw = importDocxInto; importDocxInto = (...a) => holdSync(() => raw(...a)); }
   async function importScrivener() { if (window.UnwipScriv) return window.UnwipScriv.start(); }
   $('#btn-import').onclick = e => {
     const r = e.target.getBoundingClientRect();
@@ -4638,7 +4649,7 @@
     beginSprint, typewriterScroll, applyTheme, insertCleanHTML, resyncWords, openSplit, takeSnapshot, uid,
     reloadProjectMeta, showLibrary, openProject, leaveProject: () => leaveProject(), importScrivener: () => importScrivener(), DEFAULT_STYLE, setMode, setView: v => setView(v), importWordProject: () => importWordProject(), newProjectTemplate: () => newProjectTemplate(), ROOTS,
     tidyBlankLines, sectionDialog, sheetFor, scheduleNames, fontOptionsHTML, applyStyle, markScenes, docBlocks, rejectChanges, acceptChanges, isTitlePage, compileManuscript, templateGallery, continueWriting, noteLastPlace, caretOffset,
-    openPreview, snapshotsDialog, openSettings, flushAll, goalsDialog, writtenOn, dayKey, streaks, dial, manuscriptWords, openFind, openSearch, splitAtCursor, setMode, level: m => level(m), restoreRange, refreshToolbar, styleForm, applyStyleNow, refreshSnapCount
+    openPreview, snapshotsDialog, openSettings, flushAll, holdSync, isMine, hereName, goalsDialog, writtenOn, dayKey, streaks, dial, manuscriptWords, openFind, openSearch, splitAtCursor, setMode, level: m => level(m), restoreRange, refreshToolbar, styleForm, applyStyleNow, refreshSnapCount
   };
 })();
 

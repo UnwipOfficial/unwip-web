@@ -89,7 +89,7 @@ window.UnwipSync = (function () {
   // ================================================================== WHAT CHANGED ELSEWHERE
   // documents saved on another device since this one last had the project open
   function changedList(since) {
-    const out = []; U.walkTree(S.project.binder, n => { if (n.type === 'doc' && n.mod && n.dev && n.dev !== S.device && n.mod > since) out.push(n); });
+    const out = []; U.walkTree(S.project.binder, n => { if (n.type === 'doc' && n.mod && n.dev && !U.isMine(n.dev, n.devId) && n.mod > since) out.push(n); });
     return out.sort((a, b) => b.mod - a.mod);
   }
   function changedElsewhere() {
@@ -111,7 +111,7 @@ window.UnwipSync = (function () {
     all.sort((a, b) => b.mod - a.mod);
     const list = onlyElsewhere ? changedList(S.lastSeenAt || 0) : all.slice(0, 20);
     const body = document.createElement('div');
-    body.innerHTML = list.length ? `<div class="sy-list">${list.map(n => `<div class="sy-row" data-id="${n.id}"><div><b>${esc(n.title || 'Untitled')}</b><span>${ago(n.mod)}${n.dev ? ` · on ${esc(n.dev)}${n.dev === S.device ? ' (this computer)' : ''}` : ''}</span></div><button class="btn small">Open</button></div>`).join('')}</div>
+    body.innerHTML = list.length ? `<div class="sy-list">${list.map(n => `<div class="sy-row" data-id="${n.id}"><div><b>${esc(n.title || 'Untitled')}</b><span>${ago(n.mod)}${n.dev ? ` · on ${esc(n.dev)}${U.isMine(n.dev, n.devId) ? ` (${U.hereName()})` : ''}` : ''}</span></div><button class="btn small">Open</button></div>`).join('')}</div>
       <p class="rp-note">Opening a document that was changed on another device highlights exactly what changed.</p>` : '<p class="np-empty">Nothing yet. Documents show up here as they’re saved.</p>';
     U.modal({ title: onlyElsewhere ? 'Changed on your other device' : 'Recently updated', body, wide: true, buttons: [{ label: 'Close', value: true, kind: 'primary' }],
       onOpen: back => $$('.sy-row', back).forEach(r => r.querySelector('button').onclick = () => { back.querySelector('.m-foot .btn').click(); U.openDoc(r.dataset.id); }) });
@@ -168,7 +168,7 @@ window.UnwipSync = (function () {
     const f = U.findNode(id); if (!f) return;
     const seen = await api.seenLoad(S.slug, id).catch(() => null);
     const n = f.node;
-    if (seen && n.dev && n.dev !== S.device && n.mod && n.mod > seen.at + 1000 && seen.html !== editor.innerHTML) {
+    if (seen && n.dev && !U.isMine(n.dev, n.devId) && n.mod && n.mod > seen.at + 1000 && seen.html !== editor.innerHTML) {
       api.snapSave(S.slug, id, seen.html, `Before changes on ${n.dev}`, true).catch(() => {});   // the old version stays in Snapshots
       const r = highlightChanges(seen.html);
       if (r && (r.newWords || r.removed)) {
@@ -459,7 +459,7 @@ window.UnwipSync = (function () {
     const items = (list || []).flatMap(p => (p.recent || []).map(r => ({ ...r, slug: p.slug, project: p.title }))).sort((a, b) => b.mod - a.mod).slice(0, 5);
     if (!items.length) { if (sec) sec.remove(); return; }
     if (!sec) { sec = document.createElement('section'); sec.id = 'lib-recent'; sec.className = 'lib-recent'; const row = $('#write-home .lib-row'); row.parentNode.insertBefore(sec, row); }
-    sec.innerHTML = `<div class="lr-head">Recently updated</div><div class="lr-list">${items.map(r => `<button class="lr-item" data-slug="${esc(r.slug)}" data-id="${esc(r.id)}"><b>${esc(r.title || 'Untitled')}</b><span>${esc(r.project)} · ${ago(r.mod)}${r.dev ? ` · ${r.dev === S.device ? 'this computer' : 'on ' + esc(r.dev)}` : ''}</span></button>`).join('')}</div>`;
+    sec.innerHTML = `<div class="lr-head">Recently updated</div><div class="lr-list">${items.map(r => `<button class="lr-item" data-slug="${esc(r.slug)}" data-id="${esc(r.id)}"><b>${esc(r.title || 'Untitled')}</b><span>${esc(r.project)} · ${ago(r.mod)}${r.dev ? ` · ${U.isMine(r.dev, r.devId) ? U.hereName() : 'on ' + esc(r.dev)}` : ''}</span></button>`).join('')}</div>`;
     $$('.lr-item', sec).forEach(b => b.onclick = async () => { const ok = await U.openProject(b.dataset.slug); if (ok !== false && U.findNode(b.dataset.id)) U.openDoc(b.dataset.id); });
   });
   // a warning on the library screen if the sync folder has gone missing (e.g. Dropbox uninstalled)

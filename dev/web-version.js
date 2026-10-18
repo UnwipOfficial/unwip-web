@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.44.91";
-window.UNWIP_LATEST_NOTES = "- iPhone: on a map, Done stays put at the right end of the top bar while you swipe the buttons, instead of sliding over them.\n- Sync now saves anything you did a moment ago first, so a book no longer shows \"Not synced\" right after you sync.\n- Closing a map you only looked at no longer counts as a change, so it doesn't mark the book as not synced.";
+window.UNWIP_VERSION = "0.44.92";
+window.UNWIP_LATEST_NOTES = "- Deleting a book everywhere no longer waits for Dropbox to finish uploading it first. It stops the upload and deletes in a few seconds. Deleting on this device only still sends its latest changes first, and now tells you that's what it's waiting for.\n- Importing with auto sync on: syncing waits until the whole book is in, then sends it in one go, so the count only goes down.\n- The sync count shows only files that actually need sending or fetching, not every file it checks.\n- Recently updated no longer calls a change from another device \"this computer\". Each device now has its own hidden ID, and phones and iPads say \"this iPhone\" or \"this iPad\".";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;

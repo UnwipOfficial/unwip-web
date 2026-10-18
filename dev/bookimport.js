@@ -457,6 +457,7 @@ window.UnwipBookImport = (function () {
     return { nodes, docs };
   }
 
+  // Dropbox waits until the whole book is written (app.js holdSync)
   async function commit(chs, opts) {
     const { nodes, docs } = buildNodes(chs, opts);
     if (opts.dest === 'new') {
@@ -475,6 +476,7 @@ window.UnwipBookImport = (function () {
     }
     return { nodes, docs };
   }
+  { const raw = commit; commit = (...a) => (U.holdSync ? U.holdSync(() => raw(...a)) : raw(...a)); }
 
   // ================================================================== "YOUR BOOK CAME IN"
   // After an import: what arrived, what formatting came with it, and anything that was left out, said plainly.
