@@ -3098,7 +3098,12 @@ html.m-kb-open .modal { max-height: calc(var(--vv-h, 100vh) - 16px) !important; 
   .mp-top > * { flex: none; }
   .mp-top .mp-title { max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mp-top .mp-sp { display: none; }
-  .mp-top #mp-done { position: sticky; right: 0; box-shadow: -10px 0 10px var(--bg); }   /* always in reach while the row scrolls */
+  /* Done is pinned to the bar's right end, outside the swiping row: "sticky" inside a sideways-scrolling row drifts
+     on the iPhone while it moves, then snaps back over the other buttons. The row leaves room at its end for it. */
+  .mp-view { position: relative; }
+  .mp-top { position: static; }
+  .mp-top::after { content: ""; flex: none; width: 10px; height: 1px; }   /* room at the end of the row (a scrolling row ignores its own end padding) */
+  .mp-top #mp-done { position: absolute; right: 10px; top: var(--mp-done-top, 8px); z-index: 3; box-shadow: -14px 0 12px 6px var(--bg); }
 }
 
 /* ---- Build on a phone: the picture stays pinned at the top while the options scroll (build.js: pin-small when

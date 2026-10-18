@@ -1519,6 +1519,14 @@
     try { await saveMetaNow(); } catch { return; }
     if (!troubleRetry) { $('#st-save').textContent = 'Saved'; $('#st-save').classList.remove('saving'); }
   }
+  // everything still waiting a moment to be saved (the page, a map, a Build piece, the book's details), saved now.
+  // Sync calls this first, so what you just did goes up with it instead of showing "Not synced" right after
+  async function flushAll() {
+    try { await flushSave(); } catch {}
+    try { if (window.UnwipMaps && window.UnwipMaps.flush) await window.UnwipMaps.flush(); } catch {}
+    try { if (window.UnwipBuild && window.UnwipBuild.flush) await window.UnwipBuild.flush(); } catch {}
+    try { if (S.metaTimer && S.slug) await saveMetaNow(); } catch {}
+  }
   function scheduleMeta() { clearTimeout(S.metaTimer); S.metaTimer = setTimeout(() => saveMetaNow().catch(() => {}), 600); }
   async function saveMetaNow() {
     clearTimeout(S.metaTimer); S.metaTimer = null; if (!S.slug) return;
@@ -4630,7 +4638,7 @@
     beginSprint, typewriterScroll, applyTheme, insertCleanHTML, resyncWords, openSplit, takeSnapshot, uid,
     reloadProjectMeta, showLibrary, openProject, leaveProject: () => leaveProject(), importScrivener: () => importScrivener(), DEFAULT_STYLE, setMode, setView: v => setView(v), importWordProject: () => importWordProject(), newProjectTemplate: () => newProjectTemplate(), ROOTS,
     tidyBlankLines, sectionDialog, sheetFor, scheduleNames, fontOptionsHTML, applyStyle, markScenes, docBlocks, rejectChanges, acceptChanges, isTitlePage, compileManuscript, templateGallery, continueWriting, noteLastPlace, caretOffset,
-    openPreview, snapshotsDialog, openSettings, goalsDialog, writtenOn, dayKey, streaks, dial, manuscriptWords, openFind, openSearch, splitAtCursor, setMode, level: m => level(m), restoreRange, refreshToolbar, styleForm, applyStyleNow, refreshSnapCount
+    openPreview, snapshotsDialog, openSettings, flushAll, goalsDialog, writtenOn, dayKey, streaks, dial, manuscriptWords, openFind, openSearch, splitAtCursor, setMode, level: m => level(m), restoreRange, refreshToolbar, styleForm, applyStyleNow, refreshSnapCount
   };
 })();
 

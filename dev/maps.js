@@ -91,10 +91,15 @@ window.UnwipMaps = (function () {
   let itemsDirty = true;
   function push() { undo.push(snapshot()); if (undo.length > 40) undo.shift(); redo = []; }
   async function restore(json) { const d = JSON.parse(json); Object.keys(st).forEach(k => delete st[k]); Object.assign(st, d); itemsDirty = true; fogDirty = true; const im = new Image(); im.src = d.land; await im.decode().catch(() => {}); mctx.clearRect(0, 0, MW, MH); mctx.drawImage(im, 0, 0); landDirty = true; itemsDirty = true; sel = null; baseKey = ''; redraw(); schedule(); }
+  // edited: something changed since the map was opened or last saved. Closing a map you only looked at doesn't save it
+  // again: every save counts as a change for Dropbox, so the book showed "Not synced" straight after a sync
+  let edited = false, openedActive = 0;
   function schedule() { if (hintToast) { hintToast.remove(); hintToast = null; }   // the "empty map" tip is done once something's on it
+    edited = true;
     clearTimeout(saveT); saveT = setTimeout(saveNow, 700); $('#mp-saved') && ($('#mp-saved').textContent = 'Saving…'); }
   async function saveNow() {
-    clearTimeout(saveT); if (!st || !nodeId) return;
+    clearTimeout(saveT); saveT = null; if (!st || !nodeId) return;
+    edited = false; openedActive = docData.active;
     st.land = maskData();
     await host.write(nodeId, JSON.stringify(docData));
     const el = $('#mp-saved'); if (el) el.textContent = 'Saved';
@@ -961,7 +966,7 @@ window.UnwipMaps = (function () {
     // labels are drawn with the bundled fonts: load them first, or the first drawing falls back to the computer's own
     try { await Promise.all(['15px Bookhaven', '600 15px Bookhaven', 'italic 15px Bookhaven', '15px "IBM Plex Mono"', '600 15px "IBM Plex Mono"'].map(f => document.fonts.load(f))); } catch {}
     host = h || bookHost;
-    nodeId = id; await load(id);
+    nodeId = id; await load(id); edited = false; openedActive = docData.active;
     view = document.createElement('div'); view.className = 'mp-view';
     view.innerHTML = `<div class="mp-top">
         <button class="icon-btn" id="mp-close" data-tip="Close the map">${I.back}</button><b class="mp-title">${esc(host.title(id) || 'Map')}</b><span class="mp-saved" id="mp-saved">Saved</span>
@@ -1166,7 +1171,7 @@ window.UnwipMaps = (function () {
   async function close(quiet) {
     if (hintToast) { hintToast.remove(); hintToast = null; }
     if (!view) return;
-    await saveNow();
+    if (edited || saveT || (docData && docData.active !== openedActive)) await saveNow();
     document.removeEventListener('keydown', keys, true); window.removeEventListener('pointerup', pointerUp);
     view.remove(); view = null; cv = null; ctx = null; nodeId = null;
     const h = host; host = bookHost; h.unmount();
@@ -1197,5 +1202,7 @@ window.UnwipMaps = (function () {
   T = TW;
   const bookOnly = () => { if (host.inBook) close(true); };
   U.on('leave', bookOnly); U.on('doc', bookOnly); U.on('view', bookOnly);
-  return { open, create, thumb, placeName: () => name(Math.random), blank: (style, kind) => blank(style, kind), close, pictures, townGen: (k, o) => T && T.generate(k, o), picture, selectGroup, get sel() { return sel; }, get tool() { return tool; }, setTool: t => setTool(t), removeSel, fillBlock: (x, y, d) => isTown() && T.fillBlock ? T.fillBlock(x, y, d) : 0, dungeonGen: k => isDungeon() && DG.generate(k), generate: (k, add) => generate(k, add), addSection, switchTo, get state() { return st; }, get doc() { return docData; }, get cam() { return cam; }, labelBox: i => st.labels[i] ? labelBox(st.labels[i]) : null, handles: () => ({ turn: handle(), size: sizeHandle() }) };
+  // anything still waiting to be saved, saved now (Sync calls this first)
+  const flush = async () => { if (view && (edited || saveT)) await saveNow(); };
+  return { open, create, flush, thumb, placeName: () => name(Math.random), blank: (style, kind) => blank(style, kind), close, pictures, townGen: (k, o) => T && T.generate(k, o), picture, selectGroup, get sel() { return sel; }, get tool() { return tool; }, setTool: t => setTool(t), removeSel, fillBlock: (x, y, d) => isTown() && T.fillBlock ? T.fillBlock(x, y, d) : 0, dungeonGen: k => isDungeon() && DG.generate(k), generate: (k, add) => generate(k, add), addSection, switchTo, get state() { return st; }, get doc() { return docData; }, get cam() { return cam; }, labelBox: i => st.labels[i] ? labelBox(st.labels[i]) : null, handles: () => ({ turn: handle(), size: sizeHandle() }) };
 })();

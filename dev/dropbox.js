@@ -153,6 +153,7 @@ window.UnwipDropbox = (function () {
     if (running) { running.again = true; return running.p; }
     running = { again: false };
     running.p = (async () => {
+      try { if (window.__unwip && window.__unwip.flushAll) await window.__unwip.flushAll(); } catch {}   // what's still being saved goes up too
       // "again" is for something saved or clashing mid-sync. A few rounds settle it; more than that and something is
       // stuck, so stop and let the next sync carry on rather than going round and round (which also wears out Dropbox's patience)
       try { let rounds = 0; do { running.again = false; await syncOnce(opts); } while (running.again && ++rounds < 3); lastError = ''; return true; }
