@@ -254,6 +254,7 @@
         e.stopPropagation();
         showMenu(e.clientX, e.clientY, [
           { label: 'Open', action: () => openBook(p) },
+          { label: 'Export…', action: async () => { const ok = await openBook(p); if (ok !== false && S.slug === p.slug) openPreview(); } },
           ...(api.web ? [] : [{ label: 'Show in folder', action: () => api.revealProject(p.slug) }]),
           { label: 'Backups…', action: () => window.UnwipSync && window.UnwipSync.backupsDialog(p.slug, p.title) },
           { label: 'Save a full backup file…', action: async () => { const f = await api.backupExport(p.slug); if (f) toast('Full backup saved, including images and snapshots.'); } },
@@ -769,6 +770,7 @@
         else items.push({ label: 'Share with the series…', action: async () => { if (!S.project.series) return window.UnwipSeries.open(); await flushSave(); await window.UnwipSeries.share([n]); toast(`“${esc(n.title)}” is shared with the series “${esc(S.project.series)}”.`); } });
       }
       if (n.type === 'doc') items.push({ label: 'Snapshots…', action: async () => { await openDoc(n.id); snapshotsDialog(); } });
+      if (window.UnwipFog && root.kind === 'manuscript' && level() === 0) items.push(...window.UnwipFog.menuItems(n));
       if (n.type === 'doc' && !n.map && window.UnwipSheets && root.kind !== 'manuscript' && root.kind !== 'trash') items.push({ label: 'Turn into separate sheets…', action: () => window.UnwipSheets.convert([n.id]) });
       if (n.type === 'doc' || n.type === 'folder') items.push({ label: 'Remove empty lines…', action: () => tidyBlankLines(n.id) });
       if (window.UnwipPageLinks && window.UnwipPageLinks.isPage(n.id) && level() >= 1) items.push({ label: 'Maps and pictures…', action: () => window.UnwipPageLinks.link(n.id) });
@@ -3011,6 +3013,7 @@
         <div class="field"><label>Author name (used on title pages and e-books)</label><input type="text" id="g-author" value="${esc(cfg.author || '')}" placeholder="e.g. Ima Novelist"></div>
         <div class="field"><label>Daily writing goal (all books)</label><input type="number" id="g-daily" min="0" step="50" value="${cfg.dailyGoal || ''}" placeholder="e.g. 1000"></div>
         <div class="field full"><label>Goal colours (the rings on the main screen and in Goals)</label><div class="gc-pick" id="g-colors"></div></div>
+        <label class="check full"><input type="checkbox" id="g-impguide" ${cfg.importGuide !== false ? 'checked' : ''}> Guide me through imports, one step at a time</label>
         <label class="check full"><input type="checkbox" id="g-quotes" ${cfg.quotes !== false ? 'checked' : ''}> Show quotes from writers (front page, writer mode, sprints, goals)</label>
         <div class="section-label">Appearance</div>
         <div class="field"><label>Theme and colours</label><button class="btn" id="s-themes" type="button">Themes &amp; colours…</button></div>
@@ -3085,7 +3088,7 @@
     const ok = await modal({ title: 'Settings', body, wide: true, buttons: [{ label: 'Cancel', value: false, kind: 'ghost' }, { label: 'Save', value: true, kind: 'primary' }] });
     if (!ok) return;
     const v = id => $('#' + id, body).value, c = id => $('#' + id, body).checked;
-    S.settings = await api.setSettings({ author: v('g-author').trim(), dailyGoal: Math.max(0, +v('g-daily') || 0), goalColors: gcDraft, quotes: c('g-quotes'), autoUpdate: c('g-autoup') });
+    S.settings = await api.setSettings({ author: v('g-author').trim(), dailyGoal: Math.max(0, +v('g-daily') || 0), goalColors: gcDraft, importGuide: c('g-impguide'), quotes: c('g-quotes'), autoUpdate: c('g-autoup') });
     try { localStorage.setItem('folio-ac', JSON.stringify({ on: c('s-ac'), min: +v('s-acmin') })); } catch {}
     try { localStorage.setItem('folio-dash', c('s-dash') ? 'on' : 'off'); } catch {}
     const langSel = $('#s-lang', body);
@@ -4203,13 +4206,18 @@
   { const raw = importWordProject; importWordProject = (...a) => holdSync(() => raw(...a)); }
   { const raw = importDocxInto; importDocxInto = (...a) => holdSync(() => raw(...a)); }
   async function importScrivener() { if (window.UnwipScriv) return window.UnwipScriv.start(); }
-  $('#btn-import').onclick = e => {
-    const r = e.target.getBoundingClientRect();
-    showMenu(r.left, r.bottom + 4, [
+  // every way to bring a book in (the import room lists them; with its guide off, the Import button shows them as a menu)
+  function importSources() {
+    return [
       ...(window.UnwipBookImport ? window.UnwipBookImport.menuItems() : []), { sep: true },
       { label: 'Scrivener project (.scriv)…', action: importScrivener },
       { label: 'Restore from a backup file (.unwip)…', action: async () => { try { const slug = await api.backupImportFile(); if (slug) { try { await Fonts.loadImported(await api.importedFonts()); } catch {} toast('Backup restored as a new book.'); showLibrary(); } } catch (e) { toast(esc(String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')), 'warn', 7000); } } }
-    ]);
+    ];
+  }
+  $('#btn-import').onclick = e => {
+    if (window.UnwipImportRoom) return window.UnwipImportRoom.open();
+    const r = e.target.getBoundingClientRect();
+    showMenu(r.left, r.bottom + 4, importSources());
   };
   async function importWordProject() {
     const title = await promptText('New book from a Word file', 'Book title', '');
@@ -4649,7 +4657,7 @@
     beginSprint, typewriterScroll, applyTheme, insertCleanHTML, resyncWords, openSplit, takeSnapshot, uid,
     reloadProjectMeta, showLibrary, openProject, leaveProject: () => leaveProject(), importScrivener: () => importScrivener(), DEFAULT_STYLE, setMode, setView: v => setView(v), importWordProject: () => importWordProject(), newProjectTemplate: () => newProjectTemplate(), ROOTS,
     tidyBlankLines, sectionDialog, sheetFor, scheduleNames, fontOptionsHTML, applyStyle, markScenes, docBlocks, rejectChanges, acceptChanges, isTitlePage, compileManuscript, templateGallery, continueWriting, noteLastPlace, caretOffset,
-    openPreview, snapshotsDialog, openSettings, flushAll, holdSync, isMine, hereName, goalsDialog, writtenOn, dayKey, streaks, dial, manuscriptWords, openFind, openSearch, splitAtCursor, setMode, level: m => level(m), restoreRange, refreshToolbar, styleForm, applyStyleNow, refreshSnapCount
+    openPreview, snapshotsDialog, openSettings, flushAll, holdSync, isMine, hereName, importSources, goalsDialog, writtenOn, dayKey, streaks, dial, manuscriptWords, openFind, openSearch, splitAtCursor, setMode, level: m => level(m), restoreRange, refreshToolbar, styleForm, applyStyleNow, refreshSnapCount
   };
 })();
 

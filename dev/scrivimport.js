@@ -226,6 +226,8 @@ window.UnwipScriv = (function () {
           ${r.skipped.length ? `<li>Not imported (Unwip doesn’t hold these yet): ${esc(r.skipped.slice(0, 8).join(', '))}${r.skipped.length > 8 ? ` and ${r.skipped.length - 8} more` : ''}.</li>` : ''}
           <li>Not imported: compile settings, collections, keywords, custom metadata, snapshots, links and Scrivener-only styles.</li>
         </ul></div>`, buttons: [{ label: 'Start writing', value: true, kind: 'primary' }] });
+    // guided: sorting starts (its Characters step offers one page per person); otherwise the old offer
+    if (window.UnwipImportRoom && await window.UnwipImportRoom.afterImport({ from: 'Scrivener' })) return;
     if (window.UnwipSheets) await window.UnwipSheets.offerAfterImport().catch(() => {});
   }
   { const raw = importNow; importNow = (...a) => (U.holdSync ? U.holdSync(() => raw(...a)) : raw(...a)); }

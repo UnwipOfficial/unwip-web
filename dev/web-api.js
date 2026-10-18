@@ -175,7 +175,7 @@
       const p = await FS.json(`${LIB}/${d}/project.json`, null); if (!p) continue;
       const recent = []; (function walk(l) { for (const n of l || []) { if (n.type === 'doc' && n.mod && !n.map) recent.push({ id: n.id, title: n.title, mod: n.mod, dev: n.dev || '', devId: n.devId || '' }); if (n.children) walk(n.children); } })(p.binder);
       recent.sort((a, b) => b.mod - a.mod);
-      out.push({ slug: d, title: p.title || d, words: p.totalWords || 0, modified: p.modified || 0, dev: p.lastDevice || '', devId: p.lastDeviceId || '', recent: recent.slice(0, 3), days: (p.statsVersion === 2 && p.stats && p.stats.days) || {}, goals: p.goals || {}, hours: (p.stats && p.stats.hours) || {}, mins: (p.stats && p.stats.mins) || {}, series: p.series || '', seriesNo: +p.seriesNo || 0, sprints: (p.stats && p.stats.sprints) || [] });
+      out.push({ slug: d, title: p.title || d, words: p.totalWords || 0, modified: p.modified || 0, dev: p.lastDevice || '', devId: p.lastDeviceId || '', sorting: (p.importSort && p.importSort.step) || '', sortingAt: (p.importSort && p.importSort.at) || 0, recent: recent.slice(0, 3), days: (p.statsVersion === 2 && p.stats && p.stats.days) || {}, goals: p.goals || {}, hours: (p.stats && p.stats.hours) || {}, mins: (p.stats && p.stats.mins) || {}, series: p.series || '', seriesNo: +p.seriesNo || 0, sprints: (p.stats && p.stats.sprints) || [] });
     }
     return out.sort((a, b) => b.modified - a.modified);
   }
