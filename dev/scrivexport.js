@@ -171,6 +171,9 @@ window.UnwipNoHardFeelings = (function () {
     const labels = []; U.walkTree(P.binder, n => { if (n.label && n.label.n && !labels.some(l => l.n === n.label.n)) labels.push(n.label); });
     const labelId = new Map(labels.map((l, i) => [l.n, i]));
     let mapsSkipped = 0, pics = 0;
+    // what was written for each document (its id -> words), so Send out can prove nothing was left behind
+    const wrote = new Map(), Clip = window.FolioClip;
+    const wordsOf = html => { try { return countWords(Clip.extract(Clip.parseHTML(html || '')).blocks); } catch { return 0; } };
     // v: where it goes when the binder is put back as it was in Scrivener (see restoreTree): its id there, its type,
     // title and icon, what's inside it, a folder's own text and the document notes. n is null for a folder only
     // Scrivener had (Draft, Research, Trash, or a folder whose contents went into Characters here).
@@ -187,6 +190,7 @@ window.UnwipNoHardFeelings = (function () {
       else if (n.icon && !/^[a-z]+$/i.test(n.icon)) meta.push(`<IconFileName>{${xml(n.icon)}}</IconFileName>`);
       else if (sx.ic && !n.icon) meta.push(`<IconFileName>${xml(sx.ic)}</IconFileName>`);
       let type = (v && v.type) || (isFolder ? 'Folder' : 'Text'), kids = '';
+      if (n.map && opts.noMaps) return '';
       if (n.map) {
         // a map comes across as a picture of it
         const pic = window.UnwipMaps && window.UnwipMaps.pictures ? await window.UnwipMaps.pictures(n.id).catch(() => []) : [];
@@ -196,6 +200,9 @@ window.UnwipNoHardFeelings = (function () {
         let html = n.id === S.docId ? U.editor.innerHTML : await U.api.loadDoc(S.slug, n.id).catch(() => '');
         // suggested changes are decided in the copy, as chosen in the summary (the book here keeps them)
         html = opts.tcm === 'reject' ? U.rejectChanges(html) : U.acceptChanges(html);
+        if (n.id) wrote.set(n.id, wordsOf(html));
+        if (opts.notesFor) { const c = opts.notesFor(html); if (c) (v || (v = { kids: [] })).cmt = c; }
+        if (opts.addHTML) html += opts.addHTML(n) || '';
         // a chapter whose title was typed into its text in Scrivener gets that line back (see titles.js)
         // remembered typed titles go back exactly; a book with none remembered gets each chapter's name typed in
         const line = !opts.restore || !inDraft ? '' : n.tt && n.tt.line ? n.tt.line : (anyTT || FRONT.test(n.title || '') ? '' : (n.title || ''));
@@ -212,10 +219,14 @@ window.UnwipNoHardFeelings = (function () {
       if (v && v.own) {
         let html = v.own.id === S.docId ? U.editor.innerHTML : await U.api.loadDoc(S.slug, v.own.id).catch(() => '');
         html = opts.tcm === 'reject' ? U.rejectChanges(html) : U.acceptChanges(html);
+        wrote.set(v.own.id, wordsOf(html));
+        if (opts.notesFor) { const c = opts.notesFor(html); if (c) v.cmt = (v.cmt || '') + c; }
         files.push({ name: `Files/Data/${id}/content.rtf`, data: htmlToRTF(html, P.style) }); docsOut.push(v.own.title); if (onStep) onStep(docsOut.length);
       }
-      if (v && v.notes && v.notes.length) {
-        let html = ''; for (const d of v.notes) html += await U.api.loadDoc(S.slug, d.id).catch(() => '');
+      // document notes, and the comments on its text (Send out: "comments go into the document's notes")
+      if ((v && v.notes && v.notes.length) || (v && v.cmt)) {
+        let html = ''; for (const d of (v.notes || [])) { const h = await U.api.loadDoc(S.slug, d.id).catch(() => ''); wrote.set(d.id, wordsOf(h)); html += h; }
+        if (v.cmt) html += v.cmt;
         files.push({ name: `Files/Data/${id}/notes.rtf`, data: htmlToRTF(html, P.style) });
       }
       if (n.synopsis) files.push({ name: `Files/Data/${id}/synopsis.txt`, data: n.synopsis });
@@ -231,8 +242,18 @@ window.UnwipNoHardFeelings = (function () {
       let kids = ''; for (const c of r.children || []) kids += await item(c, inDraft, 1);
       return `        <BinderItem UUID="${uuid()}" Type="${type}" Created="${stamped}" Modified="${stamped}">\n            <Title>${xml(title)}</Title>\n            <MetaData/>\n${kids ? `            <Children>\n${kids}            </Children>\n` : ''}        </BinderItem>\n`;
     };
+    // extra documents Unwip makes on the way out (Send out's Story Bible document), at the top of the binder
+    const extras = async () => { let x = ''; for (const e of opts.extra || []) { const id = uuid(); files.push({ name: `Files/Data/${id}/content.rtf`, data: htmlToRTF(e.html, P.style) }); docsOut.push(e.title);
+      x += `        <BinderItem UUID="${id}" Type="Text" Created="${stamped}" Modified="${stamped}">\n            <Title>${xml(e.title)}</Title>\n            <MetaData/>\n        </BinderItem>\n`; } return x; };
     let binder = '';
-    if (opts.structure && P.scrivOrigin) { for (const v of restoreTree(P)) binder += await item(v.n, v.type === 'DraftFolder', 0, v); }
+    if (opts.structure && P.scrivOrigin) { for (const v of restoreTree(P)) { if (v.type === 'TrashFolder') binder += await extras(); binder += await item(v.n, v.type === 'DraftFolder', 0, v); } }
+    else if (opts.flat) {
+      // chapters only: every chapter of the manuscript in story order, straight in the Draft, no folders
+      const flat = []; U.walkTree(root('manuscript').children || [], n => { if (n.type !== 'folder') flat.push(n); });
+      binder = await sect({ children: flat }, 'DraftFolder', 0, true, 'Draft');
+      binder += await sect({ children: [] }, 'ResearchFolder', 1, false, 'Research');
+      binder += await sect({ children: [] }, 'TrashFolder', 2, false, 'Trash');
+    }
     else {
     binder = await sect(root('manuscript'), 'DraftFolder', 0, true, 'Draft');
     // everything else in the order of your binder, each section as a top-level folder
@@ -242,6 +263,7 @@ window.UnwipNoHardFeelings = (function () {
       let kids = ''; for (const c of r.children) kids += await item(c, false, 1);
       binder += `        <BinderItem UUID="${uuid()}" Type="Folder" Created="${stamped}" Modified="${stamped}">\n            <Title>${xml(r.title)}</Title>\n            <MetaData/>\n            <Children>\n${kids}            </Children>\n        </BinderItem>\n`;
     }
+    binder += await extras();
     binder += await sect(root('research'), 'ResearchFolder', 1, false, 'Research');
     binder += await sect(root('trash'), 'TrashFolder', 2, false, 'Trash');
     }
@@ -280,7 +302,17 @@ ${statuses.map((s, i) => `            <Status ID="${i}">${xml(s.name)}</Status>`
       { name: 'Snapshots/', dir: true, data: new Uint8Array(0) },
       { name: 'Settings/ui.ini', data: '[General]\nexpandedBinderItems=\nfirstEditorSource=\nsecondEditorSource=\ninspectorMode=0\n\n[Inspector]\nmode=0\n' },
       { name: 'Settings/compile.ini', data: `[General]\noutputType=-1\n\n[Content]\nDocumentSet=0\n\n[MetaData]\ntitle=${ini(bookTitle)}\nauthors=${ini(author)}\nlanguageCode=en\n` });
-    return { files: files.map(f => ({ name: f.name, dir: !!f.dir, data: typeof f.data === 'string' ? new TextEncoder().encode(f.data) : f.data })), docs: docsOut.length, mapsSkipped, pics };
+    return { files: files.map(f => ({ name: f.name, dir: !!f.dir, data: typeof f.data === 'string' ? new TextEncoder().encode(f.data) : f.data })), docs: docsOut.length, mapsSkipped, pics, wrote };
+  }
+
+  // the words in a list of blocks (the same count Send out uses for the book itself)
+  // (Unwip's own word count: "don't" and "well-known" are one word each, as in the chapter list)
+  function countWords(blocks) { let n = 0; for (const b of blocks || []) n += (b.runs || []).map(r => r.br ? ' ' : r.text || '').join('').match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)?.length || 0; return n; }
+  async function saveScriv(safe, res) {
+    if (api.exportScriv) return api.exportScriv(safe, res.files);
+    const zip = window.FolioEPUB.zip(res.files.map(f => ({ name: `${safe}.scriv/${f.name}`, data: f.data })));
+    const p = await api.exportBinary(zip, safe + '.scriv', 'zip', 'Scrivener project (zip)');
+    return p ? safe + '.scriv (in a .zip: unzip it, then open it in Scrivener)' : null;
   }
 
   // ------------------------------------------------------------------ the window
@@ -326,9 +358,7 @@ ${statuses.map((s, i) => `            <Status ID="${i}">${xml(s.name)}</Status>`
     let res;
     try { res = await buildScriv(safe, null, { restore, tcm, look, structure }); } catch (e) { return U.toast('Couldn’t make the Scrivener project: ' + esc(String(e.message || e)), 'warn', 8000); }
     try {
-      let where;
-      if (api.exportScriv) where = await api.exportScriv(safe, res.files);
-      else { const zip = window.FolioEPUB.zip(res.files.map(f => ({ name: `${safe}.scriv/${f.name}`, data: f.data }))); await api.exportBinary(zip, safe + '.scriv', 'zip', 'Scrivener project (zip)'); where = safe + '.scriv (in a .zip: unzip it, then open it in Scrivener)'; }
+      const where = await saveScriv(safe, res);
       if (!where) return;
       window.UnwipStart && window.UnwipStart.done('export');
       await U.modal({ title: 'Packed up', body: `<p>“${esc(where)}” is ready: ${res.docs} document${res.docs === 1 ? '' : 's'}${res.pics ? ` and ${res.pics} map${res.pics === 1 ? '' : 's'} as pictures` : ''}.</p>
@@ -337,5 +367,5 @@ ${statuses.map((s, i) => `            <Status ID="${i}">${xml(s.name)}</Status>`
     } catch (e) { U.toast('Couldn’t save it: ' + esc(String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')), 'warn', 8000); }
   }
 
-  return { open, htmlToRTF, buildScriv, restoreTree };
+  return { open, htmlToRTF, buildScriv, restoreTree, saveScriv, countWords };
 })();

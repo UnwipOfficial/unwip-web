@@ -2869,7 +2869,7 @@
         ['importic', 'Bring in a reader’s feedback…', 'Their changes and comments land in the right chapters.', '', () => window.UnwipReader && window.UnwipReader.receive()]]],
       ['Take it elsewhere', [
         ['folder', 'A folder of chapter files…', 'One Word or Markdown file per chapter, for Scrivener or any app.', '', () => window.UnwipExportFolder && window.UnwipExportFolder.open()],
-        ['heart', 'No hard feelings…', 'Take your book to Scrivener or anywhere else. Nothing in Unwip is changed.', '', () => window.UnwipNoHardFeelings && window.UnwipNoHardFeelings.open()]]]
+        ['heart', 'No hard feelings…', 'Take your book to Scrivener or anywhere else. Nothing in Unwip is changed.', '', () => window.UnwipSendOut ? window.UnwipSendOut.open({ slug: S.slug }) : window.UnwipNoHardFeelings && window.UnwipNoHardFeelings.open()]]]
     ];
     const items = []; groups.forEach(g => g[1].forEach(x => items.push(x)));
     const NOTE = 'Point at an item to see what it does.';

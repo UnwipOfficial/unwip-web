@@ -26,9 +26,9 @@ window.UnwipImportRoom = (function () {
   function setupButton() {
     const b = $('#btn-import'); if (!b) return;
     const home = $('#write-home'); if (home && b.parentNode !== home) home.appendChild(b);
-    b.className = 'imp-fab'; b.title = 'Bring a book in from Scrivener, Word, Google Docs, Obsidian or Markdown';
-    b.innerHTML = `${ICON.in}<span class="imp-fab-t">Import a book</span><span class="imp-fab-n" hidden></span>`;
-    b.onclick = e => { e.preventDefault(); open(); };
+    b.className = 'imp-fab'; b.title = 'Bring a book in, or send one out to Scrivener, Word, Google Docs, Obsidian or Markdown';
+    b.innerHTML = `${ICON.in}<span class="imp-fab-t">Import / Export</span><span class="imp-fab-n" hidden></span>`;
+    b.onclick = e => { e.preventDefault(); if (window.UnwipSendOut) window.UnwipSendOut.choose(); else open(); };
   }
   function setBadge(list) {
     const n = (list || []).filter(p => p.sorting).length, el = $('#btn-import .imp-fab-n'); if (!el) return;
@@ -61,6 +61,8 @@ window.UnwipImportRoom = (function () {
   async function open() {
     if (!guideOn()) return plainMenu();
     const { body, foot } = shell('welcome'); room.classList.add('ir-welcome');
+    // back goes to Import / Export, where you picked bringing a book in
+    if (window.UnwipSendOut) { $('.ir-back span', room).textContent = 'Import / Export'; $('.ir-back', room).onclick = () => { close(); window.UnwipSendOut.choose(); }; }
     const sorting = (lastList.length ? lastList : await api.listProjects().catch(() => [])).filter(p => p.sorting);
     const srcs = U.importSources ? U.importSources() : [];
     body.innerHTML = `<div class="ir-wel">

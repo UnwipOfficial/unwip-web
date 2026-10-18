@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.44.94";
-window.UNWIP_LATEST_NOTES = "- iPhone: a book's \u22ef menu now has Export\u2026 (PDF, EPUB, Word, Scrivener). It used to be only on the PC and iPad's top bar.";
+window.UNWIP_VERSION = "0.44.95";
+window.UNWIP_LATEST_NOTES = "- New: Send a book out. The button in the bottom right of the main screen is now Import / Export. Send a book out takes it a step at a time: pick the book and where it's going (Scrivener, Word, Google Docs, Obsidian or a Markdown folder), then the shape it arrives in. For Scrivener that's as Unwip has it, as it came in (for books brought in from Scrivener), or chapters only. For Word it's one file, a file per chapter, or a file for Vellum or Atticus.\n- Before anything is saved, \"What changes on the way out\" lists what travels in a different form, each with a tick box: character sheet gear as a list on each character's page, the Story Bible as one document, maps as pictures, comments in Scrivener's notes (or a Comments file), and in Obsidian the first mention of each character or place becomes a [[link]].\n- The last step counts the words in your manuscript here and the words that went out, so you can see every one made it.\n- Inside a book, Export \u203a No hard feelings\u2026 opens the same steps with that book already picked. Your book in Unwip never changes.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
