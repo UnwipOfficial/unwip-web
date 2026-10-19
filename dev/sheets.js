@@ -266,5 +266,14 @@ window.UnwipSheets = (function () {
     if (v) return convert(found.map(x => x.id));
   }
 
-  return { parse, convert, findLists, offerAfterImport, splitName };
+  // what each page would look like if this list were turned into sheets (nothing is made): the section they'd go in,
+  // and for each entry its name, the heading it's under, and the page as the section's sheet would start it
+  function preview(id, html) {
+    const f = U.findNode(id); if (!f) return null;
+    const r = parse(html); if (r.count < 2) return null;
+    const here = U.rootOf(id), root = isSheetRoot(here) ? here : (guessRoot(f.node.title, r.groups) || null);
+    const items = []; for (const g of r.groups) for (const e of g.entries) items.push({ name: e.name, group: g.group, html: sheetHTML(root || here, e) });
+    return { section: root ? root.title : `a new section called “${f.node.title}”`, items };
+  }
+  return { parse, convert, findLists, offerAfterImport, splitName, preview };
 })();

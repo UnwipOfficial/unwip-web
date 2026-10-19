@@ -3845,6 +3845,14 @@ body.litrpg .editor p.lit-sys.lit-plain, body.litrpg #editor p.lit-sys.lit-plain
 .ir-now-l { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: 13.5px; } .ir-now-l .on { color: var(--text); font-weight: 600; } .ir-now-m { opacity: .7; }
 .ir-remind { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 26px 10px; padding: 12px 16px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); font-size: 14.5px; }
 .ir-remind span { flex: 1; min-width: 200px; }
+.ir-pv { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.ir-pv summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--muted); }
+.ir-pv[open] summary { margin-bottom: 8px; }
+.ir-pv-where { font-size: 13.5px; color: var(--muted); margin-bottom: 8px; } .ir-pv-where b { color: var(--text); }
+.ir-paper { background: #f6f3ec; color: #2a2a2a; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.22); padding: 14px 18px; font: 13px/1.55 var(--book-font, Georgia), Georgia, serif; max-height: 260px; overflow: hidden; max-width: 420px; }
+.ir-paper h3 { margin: 0 0 6px; font-size: 16px; } .ir-paper p { margin: 2px 0; } .ir-paper p b { font-family: system-ui, sans-serif; font-size: 11.5px; color: #6b6760; }
+.ir-paper h2 { margin: 10px 0 2px; font: 700 11px/1.3 system-ui, sans-serif; letter-spacing: .5px; text-transform: uppercase; color: #6b6760; }
+.ir-flip { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); margin-top: 8px; }
 .ir-q.ir-ask { color: var(--text); font-weight: 600; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); border-left: 3px solid var(--accent); }
 .ir-guess { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; color: var(--muted); padding: 8px 12px; border-radius: 10px; border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--line)); }
 .ir-guess b { color: var(--text); } .ir-guess .btn { margin-left: auto; } .ir-guess.agree { border-style: solid; border-color: var(--line); }
@@ -3935,6 +3943,16 @@ body.litrpg .editor p.lit-sys.lit-plain, body.litrpg #editor p.lit-sys.lit-plain
 .so-proof .bad { border-color: color-mix(in srgb, var(--warn, #c0392b) 60%, var(--line)); }
 .so-check .ir-pend b { word-break: break-all; } .so-check .ir-pend span { font-size: 13px; }
 .so-sum { color: var(--muted); font-size: 14px; }
+.so-pv { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.so-pv-scriv { display: grid; grid-template-columns: 200px minmax(0, 1fr); max-width: 640px; border-radius: 10px; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,.22); }
+.so-pv-bind { background: #dcd8cf; color: #2a2a2a; padding: 10px; font-size: 12px; line-height: 1.7; overflow: hidden; }
+.so-pv-bind .so-tl { color: #2a2a2a; } .so-pv-scriv .so-pv-page { border-radius: 0; box-shadow: none; max-width: none; background: #fff; }
+.so-pv-page p { margin: 0 0 8px; }
+.so-pv-md { margin: 0; max-width: 560px; white-space: pre-wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text); max-height: 240px; overflow: hidden; }
+.so-sample { display: flex; flex-direction: column; gap: 1px; margin-top: 6px; width: max-content; max-width: 100%; background: #f6f3ec; color: #2a2a2a; border-radius: 6px; padding: 6px 10px; font: 12px/1.45 var(--book-font, Georgia), Georgia, serif; box-shadow: 0 3px 10px rgba(0,0,0,.15); }
+.so-sample em { font: 700 10px/1.3 system-ui, sans-serif; letter-spacing: .5px; text-transform: uppercase; color: #6b6760; font-style: normal; margin-top: 3px; }
+.so-sample i { color: #999; } .so-sample u { text-decoration: none; color: #6b4fc8; }
+@media (max-width: 720px) { .so-pv-scriv { grid-template-columns: minmax(0, 1fr); } .so-pv-bind { display: none; } }
 @media (max-width: 1100px) { .so-dests { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 720px) {
   .so-ch { padding: 20px 16px 30px; gap: 18px; } .so-ch-h { text-align: left; } .so-ch-h h1 { font-size: 26px; }

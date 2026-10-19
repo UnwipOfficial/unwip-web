@@ -26,7 +26,9 @@ window.UnwipDropboxImport = (function () {
     await load();
     if (st.access && st.exp > Date.now() + 60000) return st.access;
     if (!st.refresh) return null;
-    const r = await SI.refreshRequest(KEY, st.refresh);
+    // Dropbox busy (429) or having a moment (5xx): try again quietly, after 1 then 2 seconds, before saying so
+    let r = await SI.refreshRequest(KEY, st.refresh);
+    for (let i = 0; i < 2 && !r.ok && r.status !== 400 && r.status !== 401; i++) { await new Promise(res => setTimeout(res, 1000 * (i + 1))); r = await SI.refreshRequest(KEY, st.refresh); }
     if (!r.ok) {
       // only Dropbox saying the sign-in is no good any more (400 invalid_grant, 401) means signing in again; "busy" (429)
       // or a hiccup (5xx) used to throw the sign-in away too, so the import asked to sign in again after a bad moment

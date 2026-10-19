@@ -175,6 +175,28 @@ window.UnwipSendOut = (function () {
     for (const r of roots.slice(0, 5)) { add(`📁 ${r.title}`, 0); for (const k of (r.children || []).slice(0, 2)) add(`${k.type === 'folder' ? '📁' : '📄'} ${k.title || 'Untitled'}`, 1); if ((r.children || []).length > 2) add(`… ${r.children.length - 2} more`, 1, 'so-tl-m'); }
     return lines.join('');
   }
+  // ---------------------------------------------------------------- previews: how it will look over there
+  let pvCh = 0; const pvText = {};
+  async function chapterText(id) {
+    if (!(id in pvText)) { let b = []; try { b = await U.docBlocks(id, 'none'); } catch {} pvText[id] = b.map(x => (x.runs || []).map(r => r.br ? ' ' : r.text || '').join('').trim()).filter(Boolean).slice(0, 3); }
+    return pvText[id];
+  }
+  const namesHere = () => { const out = []; for (const r of S.project.binder) if (['characters', 'places', 'items'].includes(r.kind)) U.walkTree(r.children || [], n => { if (n.type === 'doc' && !n.map && (n.title || '').trim().length > 2) out.push(n.title.trim()); }); return out.sort((a, b) => b.length - a.length); };
+  const cut = (t, n) => t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t;
+  async function shapePreview() {
+    const ids = msDocs(oneFile()); if (!ids.length) return '';
+    pvCh = Math.max(0, Math.min(ids.length - 1, pvCh));
+    const id = ids[pvCh], f = U.findNode(id), title = (f && f.node.title) || 'Untitled', paras = await chapterText(id), app = DEST[st.to][0];
+    const text = paras.map(p => cut(p, 260)), flip = `<div class="ir-flip so-pv-flip"><button type="button" class="icon-btn small" data-pvch="-1" ${pvCh ? '' : 'disabled'} aria-label="Previous chapter">‹</button><span>${esc(title)} · ${pvCh + 1} of ${ids.length}</span><button type="button" class="icon-btn small" data-pvch="1" ${pvCh < ids.length - 1 ? '' : 'disabled'} aria-label="Next chapter">›</button></div>`;
+    let view;
+    if (st.to === 'scriv') view = `<div class="so-pv-scriv"><div class="so-pv-bind">${treeLines(st.shape)}</div><div class="ir-paper so-pv-page">${text.map(p => `<p>${esc(p)}</p>`).join('')}</div></div>`;
+    else if (st.to === 'obsidian' || st.to === 'md') {
+      let md = `# ${title}\n\n${text.join('\n\n')}`;
+      if (st.to === 'obsidian') for (const nm of namesHere()) { const re = new RegExp(`(^|[^\\p{L}\\[])(${nm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(?![\\p{L}\\]])`, 'u'); if (re.test(md.slice(title.length + 2))) { const head = md.slice(0, title.length + 4); md = head + md.slice(title.length + 4).replace(re, (m, a, b) => `${a}[[${b}]]`); } }
+      view = `<pre class="so-pv-md">${esc(md)}</pre>`;
+    } else view = `<div class="ir-paper so-pv-page"><h3>${esc(title)}</h3>${text.map(p => `<p>${esc(p)}</p>`).join('')}</div>`;
+    return `<section class="so-pv"><div class="ir-cap">How it will look in ${esc(app)}</div>${view}${flip}</section>`;
+  }
   function stepShape() {
     const { body, foot } = shell('shape');
     const P = S.project, list = shapesFor(st.to);
@@ -185,8 +207,10 @@ window.UnwipSendOut = (function () {
         <div class="so-shapes">${list.map(k => { const off = k === 'origin' && !P.scrivOrigin; return `<button type="button" class="so-shape ${k === st.shape ? 'on' : ''}" data-shape="${k}" ${off ? 'disabled' : ''}>
           <span class="so-sh-t"><i class="so-radio"></i><b>${esc(SHAPES[k][0])}</b></span>
           <span class="so-sh-d">${esc(off ? 'Only for books brought in from Scrivener. This one started here, so there’s nothing to put back.' : SHAPES[k][1])}</span>
-          ${off ? '' : `<span class="so-tree">${treeLines(k)}</span>`}</button>`; }).join('')}</div></div>`;
+          ${off ? '' : `<span class="so-tree">${treeLines(k)}</span>`}</button>`; }).join('')}</div><div class="so-pv-slot"></div></div>`;
       $$('[data-shape]', body).forEach(b => b.onclick = () => { if (b.disabled) return; st.shape = b.dataset.shape; draw(); });
+      shapePreview().then(h => { const slot = $('.so-pv-slot', body); if (!slot) return; slot.innerHTML = h;
+        $$('[data-pvch]', slot).forEach(b => b.onclick = () => { pvCh += +b.dataset.pvch; draw(); }); });
     };
     draw();
     foot.innerHTML = `<button type="button" class="btn ghost ir-prev">‹ Back</button><span class="ir-sp"></span><button type="button" class="btn primary ir-next">Next: what changes ›</button>`;
@@ -267,10 +291,16 @@ window.UnwipSendOut = (function () {
     if (sv.status) rows.push(['status', 'Status and labels', sc ? 'Scrivener’s own status and labels' : `They stay here. ${app} has nowhere to put them.`, pl(sv.status, 'document'), null]);
     if (sv.sys) rows.push(['sys', 'System message boxes', 'Plain text in [square brackets], as you typed them, so the words stay in the chapter', pl(sv.sys, 'box', 'boxes'), null]);
     for (const r of rows) if (!(r[0] in O)) O[r[0]] = r[4] !== false;
+    // a tiny sample of what some of these turn into
+    const sample = {};
+    if (sv.sheets.length) { const n = sv.sheets[0]; sample.sheets = `<b>${esc(n.title)}</b><i>…</i><em>Gear</em>${gearOf(n).slice(0, 2).map(([sl, nm, r]) => `<span><b>${esc(sl)}:</b> ${esc(nm)}${r ? ` (${esc(r)})` : ''}</span>`).join('')}`; }
+    { const B = bibleBits(); if (B.facts.length) { const fx = B.facts[0], t = U.findNode(fx.node); sample.bible = `<b>Story Bible</b><em>${esc(t ? t.node.title : 'Facts')}</em><span>${fx.topic ? `<b>${esc(fx.topic)}:</b> ` : ''}${esc(cut(fx.text, 80))}</span>`; } }
+    if (sv.comments) { for (const { n } of sv.docs) { const c = commentsIn((n.id === S.docId ? U.editor.innerHTML : await api.loadDoc(S.slug, n.id).catch(() => '')) || '')[0]; if (c) { sample.comments = `<b>${esc(n.title || 'Untitled')}</b><em>${sc ? 'Notes' : 'Comments'}</em><span>${c.on ? `“${esc(cut(c.on, 40))}”: ` : ''}${esc(cut(c.note, 60))}</span>`; break; } } }
+    if (to === 'obsidian' && sv.names.length) sample.links = `<span>…then <u>[[${esc(sv.names[0])}]]</u> came down the stairs…</span>`;
     if (!O.tcm) O.tcm = 'accept';
     body.innerHTML = `<div class="ir-pad so-pad">
       <div><h1>What changes on the way out</h1><p class="ir-sub">${esc(app)} doesn’t have everything Unwip does, so a few things travel in a different form. Untick anything you’d rather leave behind.</p></div>
-      <div class="so-rows">${rows.map(([k, t, d, c, def]) => `<label class="so-row ${def === null ? 'so-info' : ''}">${def === null ? '<i class="so-dot"></i>' : `<input type="checkbox" data-opt="${k}" ${O[k] ? 'checked' : ''}>`}<b>${esc(t)}</b><span class="so-arrow">→</span><span class="so-what">${esc(d)}</span><span class="so-n">${esc(c)}</span></label>`).join('')}
+      <div class="so-rows">${rows.map(([k, t, d, c, def]) => `<label class="so-row ${def === null ? 'so-info' : ''}">${def === null ? '<i class="so-dot"></i>' : `<input type="checkbox" data-opt="${k}" ${O[k] ? 'checked' : ''}>`}<b>${esc(t)}</b><span class="so-arrow">→</span><span class="so-what">${esc(d)}${sample[k] ? `<span class="so-sample">${sample[k]}</span>` : ''}</span><span class="so-n">${esc(c)}</span></label>`).join('')}
       ${sv.ins + sv.del ? `<div class="so-row so-tc"><i class="so-dot"></i><b>Suggested changes</b><span class="so-arrow">→</span><span class="so-what">${pl(sv.ins + sv.del, 'suggestion')} nobody has accepted or rejected yet. In the copy:
         <select id="so-tcm"><option value="accept">accept them all</option><option value="reject">leave them all out</option>${to === 'word' || to === 'gdocs' ? '<option value="keep">keep them as suggestions</option>' : ''}</select></span><span class="so-n"></span></div>` : ''}
       </div>

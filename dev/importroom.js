@@ -406,6 +406,18 @@ window.UnwipImportRoom = (function () {
     if (names.filter(n => FIELDS.has(n)).length >= names.length / 2) return null;
     return { count: r.count, abilities: !!r.abilities };
   }
+  // the small preview of the pages a list would make: which one you're looking at, and whether the fold is open
+  const pvAt = {};
+  const pvOpen = () => { try { return localStorage.getItem('unwip-ir-pv') !== '0'; } catch { return true; } };
+  function previewBlock(it) {
+    const P = window.UnwipSheets && window.UnwipSheets.preview ? window.UnwipSheets.preview(it.n.id, cache[it.n.id]) : null;
+    if (!P || !P.items.length) return '';
+    const i = Math.max(0, Math.min(P.items.length - 1, pvAt[it.n.id] || 0)), e = P.items[i];
+    return `<details class="ir-pv" ${pvOpen() ? 'open' : ''}><summary>Preview: each page</summary>
+      <div class="ir-pv-where">They’ll go in <b>${esc(P.section)}${e.group ? ` › ${esc(e.group)}` : ''}</b></div>
+      <div class="ir-paper"><h3>${esc(e.name)}</h3>${e.html}</div>
+      <div class="ir-flip"><button type="button" class="icon-btn small" data-pv="-1" ${i ? '' : 'disabled'} aria-label="Previous page">‹</button><span>${i + 1} of ${P.items.length} · ${esc(e.name)}</span><button type="button" class="icon-btn small" data-pv="1" ${i < P.items.length - 1 ? '' : 'disabled'} aria-label="Next page">›</button></div></details>`;
+  }
   const nounFor = (k, abil) => abil ? ['entry', 'entries'] : k === 'characters' ? ['person', 'people'] : k === 'places' ? ['place', 'places'] : k === 'items' ? ['thing', 'things'] : ['entry', 'entries'];
   async function stepDocs(kind) {
     const { body, foot } = shell(kind);
@@ -447,7 +459,7 @@ window.UnwipImportRoom = (function () {
           <span class="ir-from">From: ${esc(it.from || '')}</span>
           <div class="ir-peek">${previewHTML(cache[it.n.id])}</div>
           ${lst && !decided(it.n.id) ? `<div class="ir-q ${isDone(it.n.id) ? '' : 'ir-ask'}">It lists ${lst.count} ${noun[1]}. How should it come in?</div>
-            <div class="ir-two"><button type="button" class="btn primary" data-pages>One page per ${noun[0]} (${lst.count} pages)</button><button type="button" class="btn" data-whole>Keep it as one document</button></div>` : ''}
+            <div class="ir-two"><button type="button" class="btn primary" data-pages>One page per ${noun[0]} (${lst.count} pages)</button><button type="button" class="btn" data-whole>Keep it as one document</button></div>${previewBlock(it)}` : ''}
           ${g && rootByKind(g.kind) ? (g.kind === where(it.n.id) ? `<div class="ir-guess agree">Unwip’s guess: <b>${esc(rootTitle(g.kind))}</b>, where it is now · ${esc(g.why)}</div>`
             : `<div class="ir-guess">Unwip’s guess: <b>${esc(rootTitle(g.kind))}</b> · ${esc(g.why)}<button type="button" class="btn small primary" data-guess>Put it there</button></div>`) : ''}
           <div class="ir-q">Where does it go?</div>
@@ -492,6 +504,8 @@ window.UnwipImportRoom = (function () {
       again();
     };
     const pg = $('[data-pages]', body); if (pg) pg.onclick = async () => { const id = it.n.id; await window.UnwipSheets.convert([id]); cache = {}; if (!U.findNode(id) || !isList(id)) { decide(id, 'pages'); markDone(id); } again(); };
+    $$('[data-pv]', body).forEach(b => b.onclick = () => { pvAt[it.n.id] = (pvAt[it.n.id] || 0) + +b.dataset.pv; again(); });
+    const pvd = $('.ir-pv', body); if (pvd) pvd.ontoggle = () => { try { localStorage.setItem('unwip-ir-pv', pvd.open ? '1' : '0'); } catch {} };
     const wh = $('[data-whole]', body); if (wh) wh.onclick = () => { decide(it.n.id, 'whole'); markDone(it.n.id); nav(1); };
     $$('[data-make]', body).forEach(b => b.onclick = async () => { await makePerson(b.dataset.make); U.toast(`A page for <b>${esc(b.dataset.make)}</b> is in Characters.`); again(); });
     $$('[data-not]', body).forEach(b => b.onclick = () => { const st = S.project.importSort; st.notNames = [...new Set([...(st.notNames || []), b.dataset.not])]; U.scheduleMeta(); again(); });
