@@ -95,7 +95,7 @@ window.UnwipSendOut = (function () {
       ${sent.length || sorting.length ? `<div class="so-recent"><div class="ir-cap">Recently</div>
         ${sent.map((x, n) => `<div class="ir-pend"><div><b>${esc(x.title)} → ${esc((DEST[x.to] || [x.to])[0])}</b><span>Sent out ${esc(when(x.at))} · ${esc((SHAPES[x.shape] || [''])[0])}${x.words ? ` · ${pl(x.words, 'word')}` : ''}</span></div><button type="button" class="btn" data-again="${n}">Send again</button></div>`).join('')}
         ${sorting.map(p => `<div class="ir-pend"><div><b>${esc(p.title)} ←</b><span>Brought in ${esc(when(p.sortingAt))} · still being sorted</span></div><button type="button" class="btn" data-carry="${esc(p.slug)}">Carry on</button></div>`).join('')}</div>` : ''}
-      <p class="ir-hint so-foot">Making a print-ready PDF or an EPUB to publish? That’s Export inside the book, where you can preview every page.</p></div>`;
+      <p class="ir-hint so-foot">Export inside a book is where you preview every page and make a print-ready PDF or an EPUB to publish.</p></div>`;
     $('[data-go="in"]', body).onclick = () => { if (room) room.remove(); room = null; window.UnwipImportRoom && window.UnwipImportRoom.open(); };
     $('[data-go="out"]', body).onclick = () => open({ slug: S.slug || '' });
     $$('[data-again]', body).forEach(b => b.onclick = () => { const x = sent[+b.dataset.again]; open({ slug: x.slug, to: x.to, shape: x.shape }); });
