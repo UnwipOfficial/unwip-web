@@ -3866,6 +3866,8 @@ body.litrpg .editor p.lit-sys.lit-plain, body.litrpg #editor p.lit-sys.lit-plain
   .ir-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+.tr-cq { flex: none; font-size: 12px; margin-right: 4px; }
+
 /* ---- Send a book out (sendout.js): the Import / Export choice and the four steps; uses the import room's .ir shell */
 .so-ch { max-width: 960px; margin: 0 auto; padding: 56px 40px 40px; display: flex; flex-direction: column; gap: 28px; }
 .so-ch-h { text-align: center; } .so-ch-h h1 { font-size: 34px; }

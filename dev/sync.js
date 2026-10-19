@@ -233,7 +233,7 @@ window.UnwipSync = (function () {
     let r = S.project.binder.find(n => n.root && n.kind === 'conflicts');
     if (!r && create) {
       r = { id: 'root-conflicts', type: 'folder', kind: 'conflicts', title: 'Conflicted copies', root: true, open: true, children: [], icon: '⚠️' };
-      const t = S.project.binder.findIndex(n => n.root && n.kind === 'trash'); S.project.binder.splice(t < 0 ? S.project.binder.length : t, 0, r);
+      S.project.binder.push(r);   // below the Trash, like Scrivener's Conflicts folder
     }
     return r;
   }

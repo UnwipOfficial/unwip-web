@@ -630,8 +630,10 @@
     // a rename box is open: redrawing now would throw it away (the "flicker" on double-click), so wait for it
     if (S.renaming && tree.contains(S.renaming)) { S.binderPending = true; return; }
     tree.innerHTML = '';
+    settleConflicts();
     const ms = S.project.binder.find(r => r.kind === 'manuscript');
     const build = (n, depth) => {
+      if (n.root && n.kind === 'conflicts' && !(n.children || []).length) return;   // nothing waiting to be sorted
       const row = document.createElement('div');
       row.className = 'tree-row' + (n.root ? ' root' : '') + (n.id === S.selectedId ? ' selected' : '') + (n.noBook ? ' no-book' : '');
       if (n.noBook) row.title = 'Left out of the book (it isn’t in the preview or exports)';
@@ -642,7 +644,7 @@
       const icon = n.root ? rootIcon(n) : iconHTML(n, n.type === 'folder' ? (n.open ? I.folderOpen : I.folder) : I.doc);
       const showCount = n.id === ms.id || isInside(n.id, ms);
       const count = showCount ? folderWords(n) : 0;
-      row.innerHTML = `<span class="tr-chev ${n.open ? 'open' : ''} ${n.type === 'folder' && (hasKids || n.root) ? '' : 'none'}">${I.chevron}</span><span class="tr-icon">${icon}</span><span class="tr-title">${esc(n.title || 'Untitled')}</span>${S.popped && S.popped.has(n.id) ? '<span class="tr-pop" title="Open in its own window">⧉</span>' : ''}${n.series && S.project.series ? `<span class="tr-series" title="Shared with the series “${esc(S.project.series)}”">${I.series}</span>` : ''}${n.fav ? `<span class="tr-fav" title="Favourite">★</span>` : ''}${n.type === 'doc' && statusOf(n.status) && S.mode === 'detailed' ? `<span class="st-dot" style="--st:${statusColor(n.status)}" title="${esc(statusName(n.status))}"></span>` : ''}${showCount && count ? `<span class="tr-count">${fmt(count)}</span>` : ''}${n.root && n.kind !== 'trash' && n.kind !== 'conflicts' ? `<button class="tr-add" title="Add a new ${n.kind === 'manuscript' ? 'chapter' : newTitleFor(n).replace(/^New /, '')} to ${esc(n.title)}">+</button>` : ''}`;
+      row.innerHTML = `<span class="tr-chev ${n.open ? 'open' : ''} ${n.type === 'folder' && (hasKids || n.root) ? '' : 'none'}">${I.chevron}</span><span class="tr-icon">${icon}</span>${'conflictOf' in n ? `<span class="tr-cq" title="Conflicted copy from ${esc(n.conflictFrom || 'another device')}: changed in two places at once">⚠️</span>` : ''}<span class="tr-title">${esc(n.title || 'Untitled')}</span>${S.popped && S.popped.has(n.id) ? '<span class="tr-pop" title="Open in its own window">⧉</span>' : ''}${n.series && S.project.series ? `<span class="tr-series" title="Shared with the series “${esc(S.project.series)}”">${I.series}</span>` : ''}${n.fav ? `<span class="tr-fav" title="Favourite">★</span>` : ''}${n.type === 'doc' && statusOf(n.status) && S.mode === 'detailed' ? `<span class="st-dot" style="--st:${statusColor(n.status)}" title="${esc(statusName(n.status))}"></span>` : ''}${showCount && count ? `<span class="tr-count">${fmt(count)}</span>` : ''}${n.root && n.kind !== 'trash' && n.kind !== 'conflicts' ? `<button class="tr-add" title="Add a new ${n.kind === 'manuscript' ? 'chapter' : newTitleFor(n).replace(/^New /, '')} to ${esc(n.title)}">+</button>` : ''}`;
       row.draggable = !n.root;
       tree.appendChild(row);
       if (n.type === 'folder' && n.open) for (const c of n.children || []) build(c, depth + 1);
@@ -1263,6 +1265,15 @@
     else toast(`“${esc(n.title)}” is a built-in section, so it can’t be deleted. You can collapse it or change its icon.`, '', 4500);
   }
   // ---- moving things around (menu + keyboard; drag and drop is below)
+  // Conflicted copies sit in their own section below the Trash, each with a ⚠️. Dragged out of it (anywhere but the
+  // Trash) a copy becomes an ordinary document. An empty section isn't shown; it's kept so Undo still has a place.
+  function settleConflicts() {
+    const B = S.project.binder, c = B.find(r => r.root && r.kind === 'conflicts'); let changed = false;
+    if (c) { const t = B.findIndex(r => r.root && r.kind === 'trash'); if (t > B.indexOf(c)) { B.splice(B.indexOf(c), 1); B.splice(t, 0, c); changed = true; } }
+    const walk = (list, keep) => { for (const n of list || []) { if ('conflictOf' in n && !keep) { delete n.conflictOf; delete n.conflictFrom; delete n.conflictAt; changed = true; } if (n.children) walk(n.children, keep); } };
+    for (const r of B) walk(r.children, r.kind === 'conflicts' || r.kind === 'trash');
+    if (changed) scheduleMeta();
+  }
   function moveNodeTo(id, parentId, index) {
     const src = findNode(id); if (!src || src.node.root) return;
     const parent = findNode(parentId).node;

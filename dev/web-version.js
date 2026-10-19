@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.44.97";
-window.UNWIP_LATEST_NOTES = "- Fixed: on an iPhone or iPad with a signal but no working connection, opening a book that another device had changed showed \"Couldn't check Dropbox\", and Open anyway did nothing. It now opens within a few seconds, so you can keep writing offline. Your changes sync when you're back online, and if both devices changed the same chapter you get both versions to choose from.";
+window.UNWIP_VERSION = "0.44.98";
+window.UNWIP_LATEST_NOTES = "- Conflicted copies (a chapter changed on two devices at once) now sit in their own section below the Trash, like Scrivener's, and each copy has a \u26a0\ufe0f in your chapter list. Drag one out to wherever you want it and it becomes an ordinary document, or delete it.\n- Unwip Dev on an iPhone or iPad: importing from Scrivener no longer tells you to pick the project from Dropbox, which Dev can't do yet. It asks for a zip.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;

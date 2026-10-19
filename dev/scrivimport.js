@@ -24,7 +24,8 @@ window.UnwipScriv = (function () {
     let how = opts.fromDropbox ? 'dropbox' : null;
     if (touch && !how) {
       how = await U.modal({ title: 'Import from Scrivener', body: `<p>${DI && DI.ready() ? 'Pick the Scrivener project straight from your Dropbox. Nothing there is changed.' : 'On an iPhone or iPad, Unwip reads a zip of your Scrivener project (Apple doesn’t let web apps open the .scriv folder itself).'}</p>
-        <p class="sim-small">A project kept only on this ${/iPad/.test(navigator.userAgent) ? 'iPad' : 'iPhone'} in Scrivener? Use Scrivener’s own Sync with Dropbox first, so it’s in Dropbox, then pick it here.</p>
+        ${DI && DI.ready() ? `<p class="sim-small">A project kept only on this ${/iPad/.test(navigator.userAgent) ? 'iPad' : 'iPhone'} in Scrivener? Use Scrivener’s own Sync with Dropbox first, so it’s in Dropbox, then pick it here.</p>`
+          : window.UNWIP_DEV ? '<p class="sim-small">Picking a project straight from Dropbox isn’t on in Unwip Dev yet. The normal Unwip (unwip.app) can.</p>' : ''}
         ${DI && DI.ready() ? '' : `<ol class="sim-steps"><li>In the <b>Files</b> app, press and hold the <b>.scriv</b> project and choose <b>Compress</b>.</li><li>Come back here, tap <b>Choose the zip</b> and pick it.</li></ol>`}`,
         buttons: [{ label: 'Cancel', value: false, kind: 'ghost' }, ...(DI && DI.ready() ? [{ label: 'Choose from Dropbox…', value: 'dropbox', kind: 'primary' }] : [{ label: 'Choose the zip…', value: 'zip', kind: 'primary' }])] });
       if (!how) return;
