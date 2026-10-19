@@ -91,7 +91,7 @@ window.UnwipMobile = (function () {
     U.walkTree([rt], n => { if (n.type === 'doc' && !n.map) out.push(n.id); });
     return out;
   }
-  const step = d => { const l = siblings(), i = l.indexOf(S.docId); if (i >= 0 && l[i + d]) U.openDoc(l[i + d]).then(refreshHead); };
+  const step = d => { const l = siblings(), i = l.indexOf(S.docId); if (i >= 0 && l[i + d]) U.openDoc(l[i + d], { from: 'list' }).then(refreshHead); };
   $('#m-prev').onclick = () => step(-1);
   $('#m-next').onclick = () => step(1);
 

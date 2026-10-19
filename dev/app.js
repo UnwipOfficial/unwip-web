@@ -701,7 +701,7 @@
       if (e.target.closest('.tr-chev') || (n.id === S.selectedId && e.detail < 2)) { n.open = !n.open; scheduleMeta(); }
       S.selectedId = n.id; renderBinder();
     } else {
-      openDoc(n.id, { focus: false });
+      openDoc(n.id, { focus: false, from: 'list' });
     }
   });
   tree.addEventListener('dblclick', e => {
@@ -855,7 +855,7 @@
     parent.open = true;
     if (type === 'doc' && sheetFor(root)) await api.saveDoc(S.slug, node.id, sheetTemplate(root));
     scheduleMeta();
-    if (type === 'doc') await openDoc(node.id); else { S.selectedId = node.id; }
+    if (type === 'doc') await openDoc(node.id, { from: 'new' }); else { S.selectedId = node.id; }
     renderBinder();
     const row = $(`.tree-row[data-id="${node.id}"]`);
     if (row) { row.scrollIntoView({ block: 'nearest' }); startRename(row, node); }
@@ -970,7 +970,7 @@
     const node = { id: uid(), type: 'doc', title: f.node.title, words: countWords(htmlText(merged)), synopsis: f.node.synopsis, status: f.node.status };
     await api.saveDoc(S.slug, node.id, merged);
     f.list.splice(f.index, 1, node); findNode('root-trash').node.children.push(f.node);
-    scheduleMeta(); await openDoc(node.id); renderBinder(); updateStatus();
+    scheduleMeta(); await openDoc(node.id, { from: 'new' }); renderBinder(); updateStatus();
     toast(`Merged ${docs.length} documents into “${esc(node.title)}”.`);
   }
 
@@ -1197,7 +1197,7 @@
     const node = type === 'folder' ? { id: uid(), type: 'folder', title: 'New folder', open: true, children: [] } : { id: uid(), type: 'doc', title: 'Untitled', words: 0 };
     S.project.binder.push(node);
     scheduleMeta();
-    if (type === 'doc') await openDoc(node.id); else S.selectedId = node.id;
+    if (type === 'doc') await openDoc(node.id, { from: 'new' }); else S.selectedId = node.id;
     renderBinder();
     const row = $(`.tree-row[data-id="${node.id}"]`);
     if (row) { row.scrollIntoView({ block: 'nearest' }); startRename(row, node); }
@@ -1450,6 +1450,7 @@
     // opening a page always shows the writing view: from the Corkboard, Moodboard, Timeline or Insights charts it used
     // to show the page but keep that view's state, which hid the toolbar until the level was switched
     if (S.view !== 'write') setView('write');
+    navNote(id, opts);
     if (S.splitId === id) { await flushSplit(); $('#split-pane').classList.add('hidden'); $('#btn-split').classList.remove('on'); S.splitId = null; if (S.project) S.project.splitId = null; }
     $$('.toast.with-action').forEach(t => t.remove()); // offers about the previous document
     S.docId = id; S.selectedId = id; S.touchedDoc = null;
@@ -1477,11 +1478,80 @@
     hideAutocomplete();
     if (S.revise) runRevise();
     emit('doc', id);
+    renderNav();
     if (opts.focus === false) return;   // opened from the binder: keep the keyboard there (Delete, arrows)
     editor.focus();
     const r = document.createRange(); r.setStart(editor.firstChild || editor, 0); r.collapse(true);
     const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
   }
+
+  // ---- Back and Forward between pages (beta, 20 Oct: following a name, Appears in, a map pin or a search result left
+  // you wondering where you'd been). Every move to another page is remembered with its scroll and cursor; the Back
+  // chip at the top of the page shows only after a move that wasn't a pick from the binder or chapter list (or a new
+  // page). Alt+← / Alt+→ (Mac: Cmd+[ / Cmd+]) and a mouse's back and forward buttons do the same.
+  const NAV = { slug: null, back: [], fwd: [], show: false };
+  const navTouch = () => !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+  function navSpot() { return S.docId && findNode(S.docId) ? { id: S.docId, top: editorWrap.scrollTop, at: caretOffset() } : null; }
+  function navNote(id, opts) {
+    if (NAV.slug !== S.slug) { NAV.slug = S.slug; NAV.back = []; NAV.fwd = []; NAV.show = false; }
+    if (opts.nav || !S.docId || S.docId === id) return;
+    const sp = navSpot(); if (sp) { NAV.back.push(sp); if (NAV.back.length > 30) NAV.back.shift(); }
+    NAV.fwd = []; NAV.show = !opts.from;
+  }
+  const navLive = list => list.filter(x => findNode(x.id) && (rootOf(x.id) || {}).kind !== 'trash');
+  async function navGo(dir, steps = 1) {
+    if (!S.slug) return false;
+    NAV.back = navLive(NAV.back); NAV.fwd = navLive(NAV.fwd);
+    const from = dir < 0 ? NAV.back : NAV.fwd, to = dir < 0 ? NAV.fwd : NAV.back;
+    if (!from.length) return false;
+    const here = navSpot(); if (here) to.push(here);
+    let spot = from.pop();
+    for (let i = 1; i < steps && from.length; i++) { to.push(spot); spot = from.pop(); }
+    NAV.show = true;
+    await openDoc(spot.id, { nav: true, focus: false });
+    if (S.docId !== spot.id) return false;
+    requestAnimationFrame(() => { if (spot.at != null && !navTouch()) placeCaretAt(spot.at); else editorWrap.scrollTop = spot.top || 0; });
+    return true;
+  }
+  const navTitle = sp => { const f = findNode(sp.id); return (f && f.node.title) || 'Untitled'; };
+  function renderNav() {
+    let box = $('#nav-chips');
+    if (!box) { box = document.createElement('div'); box.id = 'nav-chips'; box.className = 'nav-chips'; editorWrap.insertBefore(box, editorWrap.firstChild); }
+    NAV.back = navLive(NAV.back); NAV.fwd = navLive(NAV.fwd);
+    const b = NAV.show && NAV.back.length ? NAV.back[NAV.back.length - 1] : null, f = NAV.show && NAV.fwd.length ? NAV.fwd[NAV.fwd.length - 1] : null;
+    box.hidden = !b && !f;
+    box.innerHTML = `<div class="nav-in">${b ? `<button type="button" class="nav-chip" data-nav="-1" title="Back (${api.platform === 'darwin' ? 'Cmd+[' : 'Alt+←'})"><i>←</i>Back <span>to ${esc(navTitle(b))}</span></button>` : ''}${f ? `<button type="button" class="nav-chip" data-nav="1" title="Forward (${api.platform === 'darwin' ? 'Cmd+]' : 'Alt+→'})">Forward <span>to ${esc(navTitle(f))}</span><i>→</i></button>` : ''}</div>`;
+    $$('[data-nav]', box).forEach(btn => { btn.onclick = () => navGo(+btn.dataset.nav); });
+    // hover Back for a moment: the last few places, to jump back more than one
+    const bb = $('[data-nav="-1"]', box);
+    if (bb && !navTouch() && NAV.back.length > 1) {
+      let t = null;
+      bb.onmouseenter = () => { t = setTimeout(() => {
+        $$('.nav-list', box).forEach(x => x.remove());
+        const l = document.createElement('div'); l.className = 'nav-list';
+        l.innerHTML = NAV.back.slice(-6).reverse().map((sp, i) => `<button type="button" data-steps="${i + 1}">${esc(navTitle(sp))}</button>`).join('');
+        $('.nav-in', box).appendChild(l);
+        $$('[data-steps]', l).forEach(x => x.onclick = () => navGo(-1, +x.dataset.steps));
+        $('.nav-in', box).onmouseleave = () => l.remove();
+      }, 450); };
+      bb.onmouseleave = () => clearTimeout(t);
+    }
+  }
+  document.addEventListener('keydown', e => {
+    if (!S.slug || !S.docId || document.querySelector('.modal-back, .tour-card')) return;
+    // only on the page: in the binder, Alt+← / → move an item out of or into a folder
+    const tg = e.target; if (S.binderActive || (tg && tg !== document.body && !(tg.closest && tg.closest('#editor-wrap')))) return;
+    const mac = api.platform === 'darwin' || (!api.platform && /Mac/.test(navigator.platform || ''));
+    const dir = mac ? (e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey ? (e.key === '[' ? -1 : e.key === ']' ? 1 : 0) : 0)
+      : (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey ? (e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0) : 0);
+    if (!dir || !(dir < 0 ? NAV.back.length : NAV.fwd.length)) return;
+    e.preventDefault(); e.stopPropagation(); navGo(dir);
+  }, true);
+  window.addEventListener('mouseup', e => {
+    if ((e.button !== 3 && e.button !== 4) || !S.slug || !S.docId) return;
+    const dir = e.button === 3 ? -1 : 1; if (!(dir < 0 ? NAV.back.length : NAV.fwd.length)) return;
+    e.preventDefault(); navGo(dir);
+  });
 
   $('#doc-title').addEventListener('input', e => {
     const f = findNode(S.docId); if (!f) return;
@@ -1580,16 +1650,43 @@
     S.slug = null; S.project = null; S.docId = null; S.bookGone = false;
     setWriter(false);
     await showLibrary();
-    const where = /bin/.test(how || 'bin') ? `It’s in Deleted books at the bottom of this screen${/kept/.test(how || '') ? ', with the last changes you made here' : ''}, if you need it back.` : 'It’s no longer in its folder.';
+    const where = /^bin/.test(how || '') ? `It’s in Deleted books at the bottom of this screen${/kept/.test(how || '') ? ', with the last changes you made here' : ''}, if you need it back.` : 'It’s no longer in its folder on this computer, and there’s no copy in Deleted books. If it was moved on another device, it will come back when that sync arrives.';
     toast(`“${esc(title)}” was deleted on another device, so it closed here. ${where}`, 'warn', 12000);
   }
+  // One missing look isn't enough to close a book: Dropbox (or an older Unwip on another computer) can swap the
+  // book's file for a moment mid-sync, and that looked exactly like a deletion (beta, 20 Oct). It has to stay gone for
+  // three looks in a row, about ten seconds. Saves that hit the gap are kept and done again if the book is still there.
+  // projectAlive says true (there), 'bin' (gone, with a copy in Deleted books) or false (gone, no copy).
+  let goneLooking = false; const goneRetries = new Map();
+  const nap = ms => new Promise(r => setTimeout(r, ms));
+  async function goneCheck(how) {
+    if (goneLooking || S.bookGone || !S.slug) return;
+    goneLooking = true; const slug = S.slug;
+    try {
+      let r = false;
+      for (let i = 0; i < 3; i++) {
+        await nap(i ? goneGap : goneGap / 3);
+        if (S.slug !== slug || S.bookGone) return;
+        r = api.projectAlive ? await api.projectAlive(slug).catch(() => true) : true;
+        if (r === true) {
+          // a blip: it's still here. Do the saves that bounced off the gap again.
+          const again = [...goneRetries.values()]; goneRetries.clear();
+          for (const f of again) { try { await f(); } catch {} }
+          return;
+        }
+      }
+      goneRetries.clear();
+      bookGone((r === 'bin' ? 'bin' : 'none') + (/kept/.test(how || '') ? ':kept' : ''));
+    } finally { goneLooking = false; }
+  }
+  let goneGap = 4000;
   if (api.projectAlive) setInterval(async () => {
-    if (!S.slug || S.bookGone || document.hidden) return;
-    try { if (!(await api.projectAlive(S.slug))) bookGone('bin'); } catch {}
+    if (!S.slug || S.bookGone || document.hidden || goneLooking) return;
+    try { if ((await api.projectAlive(S.slug)) !== true) goneCheck(''); } catch {}
   }, 4000);
 
   function saveTrouble(e, retry, key) {
-    if (e && /BOOK_GONE/.test(String(e.message || e))) { if (!S.bookGone) bookGone(String(e.message || e)); return; }
+    if (e && /BOOK_GONE/.test(String(e.message || e))) { if (retry) goneRetries.set(key || 'x' + Math.random(), retry); if (!S.bookGone) goneCheck(String(e.message || e)); return; }
     let bar = $('#save-trouble');
     if (!e) { if (bar && !pending.size) { bar.remove(); clearInterval(troubleTimer); troubleTimer = null; troubleRetry = null; if (api.setSaveTrouble) api.setSaveTrouble(false); } return; }
     if (retry) pending.set(key || 'x' + Math.random(), retry);
@@ -4657,7 +4754,7 @@
 
   // test hooks (used by the automated checks, harmless otherwise)
   window.__folio = { S, openProject, openDoc, copyDocForDocs, compileManuscript, flushSave, addNode, setWriter, insertCleanHTML };
-  window.__unwip = {
+  window.__unwip = { navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
     editStatuses: () => editStatuses(), folderWords, iconHTML, newTitleFor, statusColor, statusName, statusOptions,   // for corkboard.js
     newEventFrom: seed => editEvent(null, seed), showMenu: (x, y, items) => showMenu(x, y, items), deleteBook: p => deleteBook(p), pageTemplate: root => sheetFor(root) ? sheetTemplate(root) : '<p><br></p>',
     get saveFailing() { return !!troubleRetry; }, pasteContent,

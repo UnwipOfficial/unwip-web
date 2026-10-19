@@ -29,6 +29,14 @@ window.UnwipImportRoom = (function () {
     b.className = 'imp-fab'; b.title = 'Bring a book in, or send one out to Scrivener, Word, Google Docs, Obsidian or Markdown';
     b.innerHTML = `${ICON.in}<span class="imp-fab-t">Import / Export</span><span class="imp-fab-n" hidden></span>`;
     b.onclick = e => { e.preventDefault(); if (window.UnwipSendOut) window.UnwipSendOut.choose(); else open(); };
+    // a second way in next to New book, where people look first (beta, 20 Oct: the round button was missed). Not on
+    // a phone: the round button is right there, and the row would get crowded.
+    const row = $('.lib-actions'), nb = $('#btn-new-project');
+    if (row && nb && !$('#btn-import2')) {
+      const b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'btn'; b2.id = 'btn-import2';
+      b2.innerHTML = `${ICON.in.replace('width="20" height="20"', 'width="16" height="16"')}<span>Import / Export</span>`; b2.title = b.title;
+      b2.onclick = b.onclick; row.insertBefore(b2, nb);
+    }
   }
   function setBadge(list) {
     const n = (list || []).filter(p => p.sorting).length, el = $('#btn-import .imp-fab-n'); if (!el) return;
@@ -467,7 +475,10 @@ window.UnwipImportRoom = (function () {
           ${sectionPeek()}
           <div class="ir-nav"><button type="button" class="btn ghost" data-prev ${sel ? '' : 'disabled'}>‹ Previous</button><button type="button" class="btn ${isDone(it.n.id) ? 'primary' : 'ghost'}" data-skip ${sel < list.length - 1 ? '' : 'disabled'}>Next document ›</button></div>
         </article></div>` : ''}
-      ${names.length ? `<div class="ir-cap">Names that come up a lot in your chapters</div><div class="ir-names">${names.map(x => `<div class="ir-name"><b>${esc(x.name)}</b><span>${pl(x.count, 'time')}</span><button type="button" class="btn small" data-make="${esc(x.name)}">Make a page</button><button type="button" class="btn ghost small" data-not="${esc(x.name)}">Not a person</button></div>`).join('')}</div>
+      ${names.length ? (() => { const sure = names.filter(x => x.sure), less = names.filter(x => !x.sure), row = x => `<div class="ir-name"><b>${esc(x.name)}</b><span>${pl(x.count, 'time')}</span><button type="button" class="btn small" data-make="${esc(x.name)}">Make a page</button><button type="button" class="btn ghost small" data-not="${esc(x.name)}">Not a person</button></div>`;
+        return `<div class="ir-cap">Names that come up a lot in your chapters</div>${sure.length ? `<div class="ir-names">${sure.map(row).join('')}</div>` : ''}
+        ${less.length ? `<details class="ir-more" ${namesOpen || !sure.length ? 'open' : ''}><summary>More names, less sure (${less.length})</summary><p class="ir-hint">Fewer mentions, or names that also start a lot of sentences.</p><div class="ir-names">${less.map(row).join('')}</div></details>` : ''}
+        <p class="ir-missed">Missed someone? You can make a page for anyone later in Characters, and their Appears in list fills in by itself.</p>`; })() + `
         <p class="ir-hint">Counted by plain rules on this device, no AI.</p>` : ''}
     </div>`;
     const again = () => { remember(body, it && it.n.id); stepDocs(kind); };
@@ -507,6 +518,7 @@ window.UnwipImportRoom = (function () {
     $$('[data-pv]', body).forEach(b => b.onclick = () => { pvAt[it.n.id] = (pvAt[it.n.id] || 0) + +b.dataset.pv; again(); });
     const pvd = $('.ir-pv', body); if (pvd) pvd.ontoggle = () => { try { localStorage.setItem('unwip-ir-pv', pvd.open ? '1' : '0'); } catch {} };
     const wh = $('[data-whole]', body); if (wh) wh.onclick = () => { decide(it.n.id, 'whole'); markDone(it.n.id); nav(1); };
+    const more = $('.ir-more', body); if (more) more.ontoggle = () => { namesOpen = more.open; };
     $$('[data-make]', body).forEach(b => b.onclick = async () => { await makePerson(b.dataset.make); U.toast(`A page for <b>${esc(b.dataset.make)}</b> is in Characters.`); again(); });
     $$('[data-not]', body).forEach(b => b.onclick = () => { const st = S.project.importSort; st.notNames = [...new Set([...(st.notNames || []), b.dataset.not])]; U.scheduleMeta(); again(); });
     // moving on to the next step with documents here not looked at yet: a gentle reminder first
@@ -541,6 +553,7 @@ window.UnwipImportRoom = (function () {
   // names: capitalised words that come up often in the chapters, never at the start of a sentence, never also written
   // in lower case (that's an ordinary word), and not already a character, place or item
   const NOT = new Set('I Im Ive Id Ill The A An And But Or If Then So He She It We They You His Her Its Our Their My Your This That These Those There Here What When Where Why How Who Which Yes No Oh Ah Well Mr Mrs Ms Miss Dr Sir Madam Lord Lady Count Doctor Professor Captain King Queen Prince Princess God Chapter Part Book Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October November December English French German'.split(' '));
+  let namesOpen = false;   // the "less sure" fold stays open while you work through it
   async function suggestNames() {
     const st = S.project.importSort || {}, skip = new Set((st.notNames || []).map(x => x.toLowerCase()));
     for (const r of S.project.binder) if (['characters', 'places', 'items'].includes(r.kind) || r.custom) U.walkTree(r.children || [], n => { for (const w of String(n.title || '').toLowerCase().split(/\s+/)) skip.add(w); skip.add(String(n.title || '').toLowerCase()); });
@@ -558,12 +571,15 @@ window.UnwipImportRoom = (function () {
     const out = [];
     for (const [name, count] of counts) {
       const parts = name.split(' ');
-      if (count < 6 || parts.some(p => NOT.has(p.replace(/[’']/g, ''))) || skip.has(name.toLowerCase()) || parts.some(p => skip.has(p.toLowerCase())) || parts.every(p => lower.has(p.toLowerCase()))) continue;
+      if (count < 3 || parts.some(p => NOT.has(p.replace(/[’']/g, ''))) || skip.has(name.toLowerCase()) || parts.some(p => skip.has(p.toLowerCase())) || parts.every(p => lower.has(p.toLowerCase()))) continue;
       out.push({ name, count });
     }
     // "Van Helsing" over a lone "Helsing" that only ever follows it
     const keep = out.filter(x => !out.some(y => y !== x && y.name.split(' ').includes(x.name) && y.count >= x.count * 0.8));
-    return keep.sort((a, b) => b.count - a.count).slice(0, 6);
+    // every name it found (beta, 20 Oct: only the top 6 showed, so important people mentioned a dozen times turned up
+    // late or not at all). The surest come first; the rest, and anything under 6 mentions, are "less sure".
+    keep.sort((a, b) => b.count - a.count);
+    return keep.slice(0, 60).map((x, i) => ({ ...x, sure: i < 8 && x.count >= 6 }));
   }
 
   // ---------------------------------------------------------------- 5. check it over
@@ -587,7 +603,7 @@ window.UnwipImportRoom = (function () {
       <p class="ir-sub">You can move anything later in the chapter list, and the guide is here for the next book too.</p></div>`;
     foot.innerHTML = `<button type="button" class="btn ghost ir-prev">‹ ${esc(STEPS[3][1])}</button><span class="ir-sp"></span><button type="button" class="btn primary ir-next">Start writing</button>`;
     $('.ir-prev', foot).onclick = () => go('world');
-    $('.ir-next', foot).onclick = () => { delete S.project.importSort; U.scheduleMeta(); close(); U.toast('All sorted. Enjoy the new home.'); };
+    $('.ir-next', foot).onclick = () => { delete S.project.importSort; U.scheduleMeta(); close(); U.toast('All sorted. Enjoy the new home.'); if (window.UnwipIntro && window.UnwipIntro.importTour) setTimeout(() => window.UnwipIntro.importTour(), 600); };
   }
 
   setupButton();

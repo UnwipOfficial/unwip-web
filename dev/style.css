@@ -1396,6 +1396,11 @@ input[type=checkbox], input[type=radio], input[type=range] { accent-color: var(-
 .bi-title:hover, .bi-title:focus { border-color: var(--line); background: var(--paper); }
 .bi-words { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 .bi-snip { color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bi-tidy-h { margin: -2px 0 6px 24px; }
+.bi-extra { margin-top: 12px; border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.bi-extra > .bi-small { line-height: 1.4; }
+.bi-extra-row { display: flex; align-items: center; gap: 8px; width: 100%; background: color-mix(in srgb, var(--accent) 8%, var(--paper)); border-radius: 8px; padding: 6px 10px; box-sizing: border-box; font-size: 13.5px; }
+.bi-extra-row > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .bi-dest { margin-top: 12px; }
 .bi-dest input[type=text], #bi-ptitle { padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--text); font: inherit; width: 260px; }
 .bi-foot { display: flex; justify-content: space-between; align-items: center; padding: 12px 22px 16px; border-top: 1px solid var(--line); }
@@ -3784,6 +3789,8 @@ body.litrpg .editor p.lit-sys.lit-plain, body.litrpg #editor p.lit-sys.lit-plain
 .imp-fab { position: fixed; right: 28px; bottom: 28px; z-index: 30; display: flex; align-items: center; gap: 10px; font: inherit; font-size: 15px; font-weight: 600; color: var(--text); background: var(--panel); border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 99px; padding: 12px 20px; box-shadow: 0 10px 28px rgba(0,0,0,.22); cursor: pointer; }
 .imp-fab svg { color: var(--accent); flex: none; }
 .imp-fab:hover { border-color: var(--accent); }
+#btn-import2 { display: inline-flex; align-items: center; gap: 7px; } #btn-import2 svg { color: var(--accent); }
+@media (max-width: 640px) { #btn-import2 { display: none; } }
 .imp-fab-n { background: var(--accent); color: var(--paper); font-size: 12px; border-radius: 99px; padding: 2px 8px; }
 #write-home { padding-bottom: 90px; }
 @media (max-width: 720px) { .imp-fab { right: 16px; bottom: calc(18px + env(safe-area-inset-bottom)); padding: 0 16px; min-height: 50px; } .imp-fab-t { font-size: 0; } .imp-fab-t::after { content: 'Import / Export'; font-size: 15px; } }
@@ -3871,6 +3878,9 @@ body.litrpg .editor p.lit-sys.lit-plain, body.litrpg #editor p.lit-sys.lit-plain
 .ir-dests { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .ir-dests .btn { min-height: 44px; justify-content: center; } .ir-dests .ir-out { color: var(--muted); }
 .ir-nav { display: flex; justify-content: space-between; }
+.ir-more { margin-top: 10px; } .ir-more > summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.ir-more > .ir-hint { margin: 2px 0 8px; }
+.ir-missed { margin: 10px 0 0; padding: 9px 12px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 7%, var(--panel)); font-size: 13.5px; line-height: 1.45; }
 .ir-names { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 4px 14px; display: flex; flex-direction: column; }
 .ir-name { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); } .ir-name:last-child { border-bottom: 0; }
 .ir-name b { flex: 1; font-weight: 500; } .ir-name span { color: var(--muted); font-size: 13px; }
@@ -4011,4 +4021,29 @@ html.fog-hide-total #st-project, html.fog-hide-total #st-project + .st-dot { dis
   .fog-start .fog-cols { grid-template-columns: minmax(0, 1fr); }
   html.fog-on .fog-panel { padding: 8px 14px 14px; }
   .fog-row { padding: 11px 10px; font-size: 16px; }
+}
+
+/* Back / Forward chip at the top of the page, after following a link (beta, 20 Oct). The page moves down a little
+   while it shows, so it never sits on the page's edge or its words. */
+.nav-chips { position: sticky; top: 8px; height: 0; z-index: 6; }
+.nav-chips[hidden] { display: none; }
+.nav-in { position: relative; width: min(var(--page-width, 760px), calc(100% - 48px)); margin: 0 auto; display: flex; gap: 8px; pointer-events: none; }
+.nav-chip { pointer-events: auto; display: inline-flex; align-items: center; gap: 7px; max-width: min(360px, 100%); min-height: 32px; box-sizing: border-box; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--paper)); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 99px; padding: 5px 13px 5px 11px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.08); white-space: nowrap; }
+.nav-chip:hover { border-color: var(--accent); }
+.nav-chip i { font-style: normal; font-size: 15px; }
+.nav-chip span { color: var(--muted); font-weight: 400; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.nav-list { pointer-events: auto; position: absolute; top: 38px; left: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 4px; display: flex; flex-direction: column; min-width: 200px; max-width: 320px; }
+.nav-list button { font: inherit; font-size: 13.5px; text-align: left; background: none; border: 0; color: var(--text); padding: 7px 10px; border-radius: 7px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-list button:hover { background: color-mix(in srgb, var(--accent) 10%, var(--paper)); }
+.nav-chips:not([hidden]) + .page { margin-top: 52px; }
+@media (max-width: 640px) { .nav-in { width: calc(100% - 24px); } .nav-chip { max-width: calc(100vw - 32px); } .nav-chips:not([hidden]) + .page { margin-top: 48px; } }
+body.writer .nav-chips { top: 14px; }
+/* the import screen on a phone (beta, 20 Oct): the round ✕ stands in for Cancel, the split box and the book's name
+   take the full width instead of running off the edge or squashing "As a new book called" */
+@media (max-width: 640px) {
+  #bi .bi-head [data-x] { visibility: hidden; }
+  #bi .bi-row { flex-wrap: wrap; gap: 6px; }
+  #bi .bi-row select { width: 100%; max-width: 100%; min-width: 0; }
+  #bi .bi-radio { flex-wrap: wrap; }
+  #bi #bi-ptitle { width: 100%; flex: 1 1 100%; box-sizing: border-box; }
 }

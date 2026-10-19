@@ -230,6 +230,7 @@ window.UnwipScriv = (function () {
     // guided: sorting starts (its Characters step offers one page per person); otherwise the old offer
     if (window.UnwipImportRoom && await window.UnwipImportRoom.afterImport({ from: 'Scrivener' })) return;
     if (window.UnwipSheets) await window.UnwipSheets.offerAfterImport().catch(() => {});
+    if (window.UnwipIntro && window.UnwipIntro.importTour) setTimeout(() => window.UnwipIntro.importTour(), 500);
   }
   { const raw = importNow; importNow = (...a) => (U.holdSync ? U.holdSync(() => raw(...a)) : raw(...a)); }
 

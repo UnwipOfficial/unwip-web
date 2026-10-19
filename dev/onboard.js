@@ -359,7 +359,7 @@ Next: the captain’s log of the Demeter, found on board and read at the inquest
 
   // ================================================================== THE TOUR
   // A spotlight that walks round the main buttons. Steps whose button isn't on screen are skipped.
-  const TOUR = [
+  const MAIN_TOUR = [
     ['#binder-tree', 'The Binder', 'Your whole book: the Manuscript (what gets exported), plus Characters, Places, Notes and Research. Drag to reorder; right-click anything for more.',
       { scrivener: 'Same idea as Scrivener’s Binder. Only the Manuscript is exported, like “Include in compile”.', docs: 'Instead of one long document, each chapter gets its own page here.', word: 'Like Word’s Navigation pane, but each chapter is its own page.', obsidian: 'Like your vault’s file list, but in reading order, and only the Manuscript is exported.' },
       'In the example, every diary entry and letter in Dracula is its own scene.'],
@@ -393,6 +393,23 @@ Next: the captain’s log of the Demeter, found on board and read at the inquest
     ['#lib-tabs [data-tab="world"]', 'Open World', 'The deep end, at the Lore level: the Story Bible for each series or book (everyone and everything in it, where they turn up, facts, threads and a glossary), and magic systems, rune alphabets, sigils and insignia.', null, null, { lib: 'world' }],
     ['#library .dbx-pill', 'Sync', 'Connect Dropbox to have the same books on your PC, Mac, iPhone and iPad. Changes go both ways, and nothing is saved over: if two devices change the same chapter, both versions are kept.', null, null, { lib: 'write' }]
   ];
+  // After an import (beta, 20 Oct): a short look round the parts made from it. Same spotlight as the main tour; each
+  // stop can do something first (open a character so Appears in is there to point at). Shown once.
+  const firstIn = kind => { const r = S.project && S.project.binder.find(x => x.kind === kind); let id = null; if (r) U.walkTree(r.children || [], n => { if (!id && n.type === 'doc' && !n.map) id = n.id; }); return id; };
+  const toList = async () => { if (window.UnwipMobile && document.body.classList.contains('phone') || matchMedia('(max-width: 640px)').matches) { try { window.UnwipMobile.showBinder(); } catch {} } await new Promise(r => setTimeout(r, 200)); };
+  const IMPORT_TOUR = [
+    ['.tree-row[data-id="root-characters"]', 'Your characters live here', 'Each person you made a page for is in Characters. Open one to see their sheet.', null, null, { before: toList, need: () => firstIn('characters') }],
+    ['#sheet-links .sl-app|#sheet-links', 'Where they turn up', 'Appears in lists every chapter that mentions them, by name, first name, surname or an alias. Click one to jump there, then ← Back to come back.', null, null,
+      { before: async () => { const id = firstIn('characters'); if (id && S.docId !== id) await U.openDoc(id, { from: 'list', focus: false }); if (window.UnwipMobile && matchMedia('(max-width: 640px)').matches) { try { window.UnwipMobile.showPage(); } catch {} } await new Promise(r => setTimeout(r, 700)); }, need: () => firstIn('characters') }],
+    ['.tree-row[data-id="root-places"]|.tree-row[data-id="root-items"]', 'Places and items work the same', 'Make a page in Places or Items and Unwip finds every chapter they’re in.', null, null, { before: toList }],
+    ['.tree-row[data-id="root-notes"]', 'The rest of what came in', 'Anything not sorted is in Notes. Carry on sorting any time from Import / Export on the main screen.', null, null, { before: toList }]
+  ];
+  let TOUR = MAIN_TOUR, tourEnd = 'That’s the tour. Happy writing!';
+  async function importTour() {
+    if (!S.slug || (S.settings && S.settings.importTourSeen)) return false;
+    S.settings = await api.setSettings({ importTourSeen: Date.now() });
+    tour(IMPORT_TOUR); return true;
+  }
   let tEls = null;
   // really on screen: has a size, isn't hidden, and isn't tucked under something else (e.g. a squeezed toolbar)
   function visible(el) {
@@ -420,14 +437,15 @@ Next: the captain’s log of the Demeter, found on board and read at the inquest
     }
     setTimeout(tour, 500);
   }
-  function tour() {
+  function tour(steps) {
     if (!S.slug) { tourExample(); return; }
     if (document.body.classList.contains('writer')) U.setWriter(false);
     endTour();
+    if (steps === IMPORT_TOUR) { TOUR = IMPORT_TOUR; tourEnd = 'That’s it. Happy writing!'; }
     tEls = { shade: document.createElement('div'), card: document.createElement('div') };
     tEls.shade.className = 'tour-spot'; tEls.card.className = 'tour-card';
     document.body.append(tEls.shade, tEls.card);
-    curIdx = -1; tourSlug = S.slug; bookShown = TOUR.filter(x => !isLib(x) && target(x[0])); showStep(1);
+    curIdx = -1; tourSlug = S.slug; bookShown = TOUR === IMPORT_TOUR ? TOUR.filter(x => !(x[5] && x[5].need) || x[5].need()) : TOUR.filter(x => !isLib(x) && target(x[0])); showStep(1);
     // the person left the screen the tour is on (opened another book, went home): the tour ends
     clearInterval(tourWatch); tourWatch = setInterval(() => {
       if (moving || curIdx < 0) return;
@@ -452,6 +470,7 @@ Next: the captain’s log of the Demeter, found on board and read at the inquest
   }
   function endTour() {
     clearInterval(tourWatch);
+    TOUR = MAIN_TOUR; tourEnd = 'That’s the tour. Happy writing!';
     if (!tEls) return;
     // picked Distraction-free in the setup, then took the tour: go into Writer mode once the tour is over
     if (writerAfterTour) { writerAfterTour = false; if (S.slug) setTimeout(() => { U.setWriter(true); U.toast('This is Writer mode, the layout you picked: just the page. Press Esc or F11 to see everything else.', '', 7000); }, 300); }
@@ -470,14 +489,18 @@ Next: the captain’s log of the Demeter, found on board and read at the inquest
     const here = () => { const lib = document.getElementById('library'); return !!lib && !lib.classList.contains('hidden'); };
     for (;;) {
       if (i < 0) return;
-      if (i >= TOUR.length) { endTour(); curIdx = -1; U.toast('That’s the tour. Happy writing!'); return; }
+      if (i >= TOUR.length) { const bye = tourEnd; endTour(); curIdx = -1; U.toast(bye); return; }
       const st = TOUR[i];
+      if (st[5] && st[5].need && !st[5].need()) { i += dir || 1; continue; }
+      if (st[5] && st[5].before) { if (tEls) { tEls.card.style.visibility = 'hidden'; tEls.shade.style.visibility = 'hidden'; } await st[5].before(); if (!tEls) return; tEls.card.style.visibility = ''; tEls.shade.style.visibility = ''; }
       if (isLib(st) !== here()) {   // this step is on the other screen: go there first
         if (tEls) { tEls.card.style.visibility = 'hidden'; tEls.shade.style.visibility = 'hidden'; }
         await moveTo(isLib(st));
         if (!tEls) return;
         tEls.card.style.visibility = ''; tEls.shade.style.visibility = '';
       }
+      // the import tour points at binder rows that can be scrolled out of sight: bring them into view first
+      if (TOUR === IMPORT_TOUR) { const q = st[0].split('|').map(x => document.querySelector(x)).find(Boolean); if (q) { q.scrollIntoView({ block: 'nearest' }); await new Promise(r => setTimeout(r, 150)); } }
       if (isLib(st)) { if (window.UnwipPlay) window.UnwipPlay.setTab(st[5].lib); await new Promise(r => setTimeout(r, 120)); }
       if (target(st[0])) break;
       i += dir || 1;
@@ -486,7 +509,7 @@ Next: the captain’s log of the Demeter, found on board and read at the inquest
     const [sel, title, text, alt, inExample] = TOUR[i];
     const isEx = /\(example\)$/.test((S.project && S.project.title) || '') || (isLib(TOUR[i]) && tourSlug);
     const extra = (inExample && isEx) ? inExample : alt && alt[S.settings.from];
-    const shown = bookShown.concat(TOUR.filter(x => isLib(x) && x[0].split('|').some(q => document.querySelector(q))));   // a step can name several places to point at, split by |
+    const shown = TOUR === IMPORT_TOUR ? bookShown : bookShown.concat(TOUR.filter(x => isLib(x) && x[0].split('|').some(q => document.querySelector(q))));   // a step can name several places to point at, split by |
     const n = Math.max(1, shown.indexOf(TOUR[i]) + 1);
     tEls.card.innerHTML = `<div class="tour-n">${n} of ${shown.length}</div><h3>${esc(title)}</h3><p>${esc(text)}</p>${extra ? `<p class="tour-alt">${esc(extra)}</p>` : ''}
       <div class="tour-foot"><button class="btn ghost small" data-t="end">End tour</button><span></span>${n > 1 ? '<button class="btn small" data-t="back">Back</button>' : ''}<button class="btn primary small" data-t="next">${n === shown.length ? 'Finish' : 'Next'}</button></div>`;
@@ -527,5 +550,5 @@ Next: the captain’s log of the Demeter, found on board and read at the inquest
 
   // the example book on its own (for screenshots and tests): scenes in chapters, laid out for a Scrivener user
   const example = async (o = {}) => { ans = { from: 'scrivener', layout: 'desk', structure: 'scenes', goal: 1000, ...o }; await makeExample(); };
-  return { start, tour, tourExample, endTour, example, settleButton };
+  return { start, tour, tourExample, endTour, example, settleButton, importTour };
 })();

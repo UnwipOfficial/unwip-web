@@ -148,6 +148,14 @@ window.UnwipBookImport = (function () {
     return out.join('');
   }
 
+  // Pandoc styling marks people add for their Word export (beta, 20 Oct): a ::: {custom-style="NoIndent"} line
+  // around a passage, and [words]{.underline} spans. Tidying takes the ::: lines out (the words inside stay) and turns
+  // {.underline} into real underlining; any other {…} span keeps just its words. Only offered when they're there.
+  const PANDOC_FENCE = /^[ \t]*:{3,}[ \t]*(\{[^}\n]*\}|[\w.-]+)?[ \t]*$/gm;
+  const PANDOC_SPAN = /\[([^\[\]\n]+)\]\{([^{}\n]*)\}/g;
+  const pandocCount = t => (String(t).match(PANDOC_FENCE) || []).length + (String(t).match(PANDOC_SPAN) || []).length;
+  const tidyPandoc = t => String(t).replace(/^[ \t]*:{3,}[ \t]*(\{[^}\n]*\}|[\w.-]+)?[ \t]*\r?\n?/gm, '')
+    .replace(PANDOC_SPAN, (_, w, a) => /(^|\s)\.(underline|ul)\b/.test(a) ? `<u>${w}</u>` : w);
   async function fileToHTML(f) {
     const ext = (f.ext || '').toLowerCase();
     if (ext === 'docx') return FI.docxToHTML(f.bytes);
@@ -368,7 +376,9 @@ window.UnwipBookImport = (function () {
     if (t === t.toUpperCase() && /[A-Z]{3}/.test(t)) t = t.toLowerCase().replace(/(^|[\s:(-])(\w)/g, (m, a, c) => a + c.toUpperCase()).replace(/\b([ivxlc]+)\b/gi, (m) => /^(i|v|x|l|c|vi|ii|iii|iv|ix|xi|xii|xiv|xv|xvi|xvii|xviii|xix|xx|xl|li|lx|xc)$/i.test(m) ? m.toUpperCase() : m);
     return t.slice(0, 80) || 'Chapter';
   }
-  const fileTitle = n => { const t = String(n || '').replace(/[_]+/g, ' ').replace(/^\s*\d{1,3}\s*[-–—.:)_]\s*/, '').trim(); return t || String(n || 'Chapter'); };
+  // "01 - Arrival" → "Arrival", but a number that's part of the name stays: "3.3-001 - Crash" keeps its 3.3 (a digit
+  // straight after the dot or dash means it's a version or a code, not a running number)
+  const fileTitle = n => { const t = String(n || '').replace(/[_]+/g, ' ').replace(/^\s*\d{1,3}\s*[-–—.:)_](?![\d.])\s*/, '').trim(); return t || String(n || 'Chapter'); };
 
   // ================================================================== THE WHOLE JOB, START TO PREVIEW
   // sources: [{ name, html }]. Returns state used by the preview.
@@ -458,11 +468,21 @@ window.UnwipBookImport = (function () {
   }
 
   // Dropbox waits until the whole book is written (app.js holdSync)
+  // "Anything else to bring in?": a notes folder kept apart from the drafts (beta, 20 Oct). Each file is one
+  // document, whole, in a folder in Notes named after the folder; the import room's last step sorts them.
+  function extraNodes(extras, docs) {
+    return (extras || []).map(x => ({ id: U.uid(), type: 'folder', title: x.title, open: false, children: x.sources.map(src => {
+      const id = U.uid(), html = src.html || '<p><br></p>'; docs[id] = html;
+      return { id, type: 'doc', title: fileTitle(src.name), words: U.countWords(html.replace(/<[^>]+>/g, ' ')) };
+    }) }));
+  }
   async function commit(chs, opts) {
     const { nodes, docs } = buildNodes(chs, opts);
+    const extra = extraNodes(opts.extras, docs);
     if (opts.dest === 'new') {
       const t = U.newProjectTemplate();
       t.binder[0].children = nodes;
+      if (extra.length) { const nr = t.binder.find(r => r.kind === 'notes'); if (nr) { nr.children = [...(nr.children || []), ...extra]; nr.open = true; } }
       let first = null; U.walkTree(nodes, n => { if (!first && n.type === 'doc' && !/^title page$/i.test(n.title)) first = n.id; });
       t.lastDoc = first; t.importedFrom = opts.from || 'Import';
       const slug = await api.createProject(opts.title || 'Imported book', t);
@@ -472,6 +492,7 @@ window.UnwipBookImport = (function () {
       const parent = U.findNode(opts.parentId || 'root-manuscript').node;
       for (const [id, html] of Object.entries(docs)) await api.saveDoc(S.slug, id, window.FolioClip.dropBlankLines(html).html);
       parent.children.push(...nodes); parent.open = true;
+      if (extra.length) { const nr = S.project.binder.find(r => r.kind === 'notes'); if (nr) { nr.children.push(...extra); nr.open = true; } }
       U.scheduleMeta(); U.renderBinder(); U.updateStatus();
     }
     return { nodes, docs };
@@ -510,8 +531,12 @@ window.UnwipBookImport = (function () {
 
   async function preview(sources, ctx = {}) {
     const multi = sources.length > 1;
+    const marks = sources.filter(x => x.pandoc), tidy = { on: true };
+    const extras = [];   // other folders brought in alongside, into Notes
+    const extraCount = () => extras.reduce((a, x) => a + x.sources.length, 0);
+    const pick = () => sources.map(x => x.pandoc && !tidy.on ? { ...x, html: x.raw } : x);
     let units;
-    try { units = await analyse(sources); } catch (e) { U.toast(esc(e.message || 'Couldn’t read that.'), 'warn', 7000); return; }
+    try { units = await analyse(pick()); } catch (e) { U.toast(esc(e.message || 'Couldn’t read that.'), 'warn', 7000); return; }
     const total = units.reduce((a, u) => a + u.words, 0);
     if (!total) { U.toast('There were no words in that to import.', 'warn', 6000); return; }
     let method = 'auto';
@@ -549,6 +574,8 @@ window.UnwipBookImport = (function () {
           ${hasScenes ? `<label class="bi-check"><input type="checkbox" id="bi-scenes"${st.scenes ? ' checked' : ''}> Also split each chapter into scenes at * * *</label>` : ''}
           ${hasParts ? `<label class="bi-check"><input type="checkbox" id="bi-parts"${st.parts ? ' checked' : ''}> Put chapters inside their Part folders</label>` : ''}
           ${hasDirs ? `<label class="bi-check"><input type="checkbox" id="bi-dirs"${st.folders ? ' checked' : ''}> Keep the sub-folders as folders (${nDirs} of them)</label>` : ''}
+          ${marks.length ? `<label class="bi-check bi-tidy"><input type="checkbox" id="bi-tidy"${tidy.on ? ' checked' : ''}> Tidy away Word/Pandoc styling marks <span class="bi-small">(in ${marks.length} file${marks.length === 1 ? '' : 's'})</span></label>
+            <p class="bi-small bi-tidy-h">The ::: lines go and the words inside them stay. [words]{.underline} becomes real underlining.</p>` : ''}
           ${p.notes.length || warn.length ? `<div class="bi-warn">${[...p.notes.map(esc), ...warn].map(x => `<p>${x}</p>`).join('')}</div>` : ''}
           <div class="bi-list-head"><span>${onCount} document${onCount === 1 ? '' : 's'}. Untick a line to join it to the one above. Click a name to change it.</span></div>
           <div class="bi-list">${chs.map((c, i) => `<div class="bi-item${c.on ? '' : ' off'}${c.part ? ' part' : ''}" data-i="${i}">
@@ -556,12 +583,15 @@ window.UnwipBookImport = (function () {
               <input class="bi-title" data-t value="${esc(c.title)}" ${c.on ? '' : 'disabled'}>
               <span class="bi-words">${c.words.toLocaleString()}</span>
               <span class="bi-snip">${esc(firstWords(c))}</span></div>`).join('')}</div>
+          <div class="bi-extra"><b>Anything else to bring in?</b><span class="bi-small">Notes, research or world-building kept in a different folder from your chapters. They go into Notes, and you can sort them after.</span>
+            ${extras.map((x, i) => `<div class="bi-extra-row"><span>📁 <b>${esc(x.title)}</b> <span class="bi-small">${x.sources.length} file${x.sources.length === 1 ? '' : 's'}, into Notes</span></span><button type="button" class="in-skip" data-xrm="${i}" aria-label="Take it out">✕</button></div>`).join('')}
+            <button type="button" class="btn small" id="bi-xadd">${IOS ? '+ Add notes files…' : '+ Add a folder of notes…'}</button></div>
           <div class="bi-dest">
             <label class="bi-radio"><input type="radio" name="bi-dest" value="new"${st.dest === 'new' ? ' checked' : ''}> As a new book called <input id="bi-ptitle" value="${esc(st.title)}"></label>
             ${S.slug ? `<label class="bi-radio"><input type="radio" name="bi-dest" value="here"${st.dest === 'here' ? ' checked' : ''}> Into “${esc(ctx.parentId ? (U.findNode(ctx.parentId) || { node: { title: 'this folder' } }).node.title : 'Manuscript')}” in ${esc(S.project.title)}</label>` : ''}
           </div>
         </div>
-        <div class="bi-foot"><span class="bi-tip">Nothing in the original files is changed.</span><button class="btn primary" id="bi-go">Import ${onCount} document${onCount === 1 ? '' : 's'}</button></div></div>`;
+        <div class="bi-foot"><span class="bi-tip">Nothing in the original files is changed.</span><button class="btn primary" id="bi-go">Import ${onCount} document${onCount === 1 ? '' : 's'}${extraCount() ? ` + ${extraCount()} note${extraCount() === 1 ? '' : 's'}` : ''}</button></div></div>`;
       wire();
     }
     const firstWords = c => { const t = c.body.map(i => c.unit.blocks[i].text).filter(Boolean).join(' '); return t.slice(0, 110) + (t.length > 110 ? '…' : ''); };
@@ -571,13 +601,27 @@ window.UnwipBookImport = (function () {
       const sc = $('#bi-scenes', ov); if (sc) sc.onchange = () => { st.scenes = sc.checked; };
       const pa = $('#bi-parts', ov); if (pa) pa.onchange = () => { st.parts = pa.checked; };
       const di = $('#bi-dirs', ov); if (di) di.onchange = () => { st.folders = di.checked; };
+      $('#bi-xadd', ov).onclick = async () => {
+        const keepLeft = { ...LEFT };
+        try {
+          let title, files;
+          if (IOS || !api.importFolder) { files = await api.importFiles(); title = 'Notes'; }
+          else { const r = await api.importFolder(); if (!r) return; if (r.books && r.books.length) { U.toast('That’s an Unwip book. Bring it in on its own from Import / Export.', 'warn', 7000); return; } files = r.files; title = r.folder || 'Notes'; }
+          if (!files || !files.length) { if (files) U.toast('That folder has no Word, text, RTF or Markdown files in it.', 'warn', 6000); return; }
+          const src = await readFiles(files);
+          if (src.length) extras.push({ title, sources: src.map(x => x.pandoc && tidy.on ? x : x.pandoc ? { ...x, html: x.raw } : x) });
+        } finally { Object.assign(LEFT, keepLeft); }
+        const top = $('.bi-body', ov) ? $('.bi-body', ov).scrollTop : 0; render(); if ($('.bi-body', ov)) $('.bi-body', ov).scrollTop = top;
+      };
+      $$('[data-xrm]', ov).forEach(b => b.onclick = () => { extras.splice(+b.dataset.xrm, 1); render(); });
+      const ti = $('#bi-tidy', ov); if (ti) ti.onchange = async () => { tidy.on = ti.checked; units = await analyse(pick()); p = plan(units, method, multi); render(); };
       $$('[data-on]', ov).forEach(cb => cb.onchange = () => { p.chapters[+cb.closest('.bi-item').dataset.i].on = cb.checked; const top = $('.bi-list', ov).scrollTop; render(); $('.bi-list', ov).scrollTop = top; });
       $$('[data-t]', ov).forEach(inp => inp.oninput = () => { p.chapters[+inp.closest('.bi-item').dataset.i].title = inp.value; });
       $$('[name="bi-dest"]', ov).forEach(r => r.onchange = () => { st.dest = r.value; });
       const pt = $('#bi-ptitle', ov); pt.oninput = () => { st.title = pt.value; }; pt.onfocus = () => { st.dest = 'new'; const r = $('[name="bi-dest"][value="new"]', ov); if (r) r.checked = true; };
       $('#bi-go', ov).onclick = async () => {
         const b = $('#bi-go', ov); b.disabled = true; b.textContent = 'Importing…';
-        try { const o = { ...st, parentId: ctx.parentId, from: ctx.from }; const r = await commit(p.chapters, o); close(); await summary(r.nodes, r.docs, { from: o.from, added: o.dest !== 'new', left: LEFT }); if (o.dest === 'new' && window.UnwipImportRoom) await window.UnwipImportRoom.afterImport({ from: o.from }); if (ctx.onDone) ctx.onDone(); }
+        try { const o = { ...st, parentId: ctx.parentId, from: ctx.from, extras }; const r = await commit(p.chapters, o); close(); await summary(r.nodes, r.docs, { from: o.from, added: o.dest !== 'new', left: LEFT }); if (o.dest === 'new') { const guided = window.UnwipImportRoom ? await window.UnwipImportRoom.afterImport({ from: o.from }) : false; if (!guided && window.UnwipIntro && window.UnwipIntro.importTour) setTimeout(() => window.UnwipIntro.importTour(), 500); } if (ctx.onDone) ctx.onDone(); }
         catch (e) { b.disabled = false; b.textContent = 'Try again'; U.toast(esc(e.message || 'Import failed.'), 'warn', 7000); }
       };
     }
@@ -597,7 +641,14 @@ window.UnwipBookImport = (function () {
       for (let i = 0; i < Math.min(A.length, B.length); i++) { const c = cmp(A[i], B[i]); if (c) return c; }
       return A.length - B.length || cmp(a.name, b.name);
     });
-    for (const f of files) { try { const html = await fileToHTML(f); sources.push({ name: f.name, html, dir: f.dir || '' }); } catch (e) { bad.push(`${f.dir ? f.dir + '/' : ''}${f.name}: ${e.message}`); } }
+    for (const f of files) { try {
+      const ext = (f.ext || '').toLowerCase(), t = /^(md|markdown|txt)$/.test(ext) ? decodeText(f.bytes) : '', n = t ? pandocCount(t) : 0;
+      if (n) {   // both versions, so the tick can be undone; pictures and embeds are counted once
+        const left = { ...LEFT }, raw = await fileToHTML(f), after = { ...LEFT }; Object.assign(LEFT, left);
+        const html = await fileToHTML({ ...f, bytes: new TextEncoder().encode(tidyPandoc(t)) }); Object.assign(LEFT, after);
+        sources.push({ name: f.name, html, raw, pandoc: n, dir: f.dir || '' });
+      } else { const html = await fileToHTML(f); sources.push({ name: f.name, html, dir: f.dir || '' }); }
+    } catch (e) { bad.push(`${f.dir ? f.dir + '/' : ''}${f.name}: ${e.message}`); } }
     if (bad.length) U.toast(bad.map(esc).join('<br>'), 'warn', 9000);
     return sources;
   }
@@ -666,5 +717,5 @@ window.UnwipBookImport = (function () {
   }
 
   return { menuItems, fromFiles, fromFolder, fromPaste, preview, close, keptIn,
-    _test: { decodeText, textToHTML, mdToHTML, odtToHTML, fileToHTML, toBlocks, METHODS, autoMethod, clean, segment, plan, warnings, buildNodes, readFiles } };
+    _test: { fileTitle, pandocCount, tidyPandoc, decodeText, textToHTML, mdToHTML, odtToHTML, fileToHTML, toBlocks, METHODS, autoMethod, clean, segment, plan, warnings, buildNodes, readFiles } };
 })();
