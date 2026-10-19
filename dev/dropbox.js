@@ -104,6 +104,12 @@ window.UnwipDropbox = (function () {
     return r;
   }
   const rpc = (path, body) => call(API + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  // Quick questions asked while you wait (opening a book): the usual retries, but 8 seconds at most in all. A phone with a signal bar but
+  // no real connection used to sit through every retry (15 seconds or more per question) after "Open anyway".
+  let unreachableAt = 0;
+  const QUICK_MS = 8000;
+  const quickly = p => Promise.race([p, sleep(QUICK_MS).then(() => { throw new Error('No connection to Dropbox'); })]);
+  const rpcQuick = (path, body) => quickly(call(API + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
   async function listAll(path, recursive, onPage) {
     let r = await rpc('/files/list_folder', { path, recursive, include_deleted: false, limit: 2000 });
     if (r.status === 409) return [];                         // the folder isn't there yet
@@ -348,18 +354,19 @@ window.UnwipDropbox = (function () {
       if (!connected() || !st.cursor || !st.remote) return false;
       try {
         const cache = { ...st.remote };
-        let r = await rpc('/files/list_folder/continue', { cursor: st.cursor });
+        let r = await rpcQuick('/files/list_folder/continue', { cursor: st.cursor });
         if (r.status === 409) { news = true; newsBooks = new Set(['*']); render(); return true; }   // Dropbox wants a fresh start: treat everything as changed
-        if (!r.ok) return false;
+        if (!r.ok) { unreachableAt = Date.now(); return false; }
         let j = await r.json(); applyEntries(cache, j.entries);
-        while (j.has_more) { r = await rpc('/files/list_folder/continue', { cursor: j.cursor }); if (!r.ok) return false; j = await r.json(); applyEntries(cache, j.entries); }
+        while (j.has_more) { r = await rpcQuick('/files/list_folder/continue', { cursor: j.cursor }); if (!r.ok) { unreachableAt = Date.now(); return false; } j = await r.json(); applyEntries(cache, j.entries); }
+        unreachableAt = 0;
         if (running) return false;
         st.remote = cache; st.cursor = j.cursor; await persist();
         const before = [...newsBooks].join('|');
         newsBooks = changedBooks(cache); news = newsBooks.size > 0;
         if ([...newsBooks].join('|') !== before) bookMarks();
         lastError = ''; render(); return true;
-      } catch (e) { return false; }
+      } catch (e) { unreachableAt = Date.now(); return false; }
     })().finally(() => { lookP = null; });
     return lookP;
   }
@@ -483,8 +490,11 @@ window.UnwipDropbox = (function () {
   };
   F.othersOpen = async slug => {
     if (!connected()) return origOthers(slug);
+    // Dropbox couldn't be reached a moment ago (you've just chosen Open anyway): don't keep you waiting to ask again
+    if (navigator.onLine === false || Date.now() - unreachableAt < 60000) return [];
     folderCache.at = 0;
-    return (await folder(slug)).filter(e => /^\.open-on-.+\.json$/.test(e.name) && e.name !== mine && Date.now() - Date.parse(e.server_modified) < 120000)
+    const entries = await quickly(folder(slug)).catch(() => { unreachableAt = Date.now(); return []; });
+    return entries.filter(e => /^\.open-on-.+\.json$/.test(e.name) && e.name !== mine && Date.now() - Date.parse(e.server_modified) < 120000)
       .map(e => ({ device: e.name.replace(/^\.open-on-|\.json$/g, ''), at: Date.parse(e.server_modified) }));
   };
   F.requestTakeover = async (slug, on) => {

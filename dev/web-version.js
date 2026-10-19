@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.44.96";
-window.UNWIP_LATEST_NOTES = "- Import / Export: clearer wording at the bottom. Export inside a book is where you preview every page and make a print-ready PDF or an EPUB to publish.";
+window.UNWIP_VERSION = "0.44.97";
+window.UNWIP_LATEST_NOTES = "- Fixed: on an iPhone or iPad with a signal but no working connection, opening a book that another device had changed showed \"Couldn't check Dropbox\", and Open anyway did nothing. It now opens within a few seconds, so you can keep writing offline. Your changes sync when you're back online, and if both devices changed the same chapter you get both versions to choose from.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
