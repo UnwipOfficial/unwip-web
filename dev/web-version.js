@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.44.99";
-window.UNWIP_LATEST_NOTES = "- Unwip Dev can now connect to Dropbox, in a folder of its own (Dropbox \u203a Apps \u203a Unwip Dev), so syncing between devices can be tried on Dev before it reaches everyone. Your real books in Apps \u203a Unwip can't be reached from Dev. Dev's Scrivener import on an iPhone or iPad can pick a project straight from Dropbox too.";
+window.UNWIP_VERSION = "0.45.0";
+window.UNWIP_LATEST_NOTES = "Import room fixes from the iPhone list.\n- Manuscript: moving a chapter with \u2191 or \u2193 keeps your place in the list instead of jumping back to the top. You can also drag a chapter by its \u2261 to anywhere in the list, with a finger or the mouse.\n- Choosing where a document goes no longer jumps straight to the next one. It shows the result (\"Now in Places\", with that section's list and this document marked), and Next document moves you on when you're ready.\n- Each step shows how far you are (\"Document 2 of 6 \u00b7 1 done\") with a small bar, and ticks the ones you've done.\n- Pressing Next: Places and the rest (or Check it over) while some documents haven't been looked at gives a gentle reminder first, with \"Look at the next one\" or \"Move on anyway\".\n- \"+ New section\u2026\" under Where does it go? makes a section of your own (Factions, Magic, anything) and puts the document straight in it.\n- A list like \"Name - who they are\" is offered one page per person even when it's already in Characters, and lists of places or things are offered one page each too. A single character's sheet (Name, Age, Hair\u2026) isn't mistaken for a list.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
