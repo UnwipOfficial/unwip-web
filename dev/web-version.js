@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.45.1";
-window.UNWIP_LATEST_NOTES = "Import room: Unwip now helps sort.\n- Each document gets a first guess at where it belongs, worked out by plain rules on your device, no AI: what it's called, the folder it came from, what's inside (system [messages], a sheet with Age and Hair, place words like harbour and town, item words, prices), and whether its title is a name that keeps coming up in your chapters. The card shows the guess and why, with Put it there. Nothing moves until you tap.\n- Use Unwip's guesses for the rest sends every remaining document in the step where it was guessed, and ticks them off.\n- Apply to all in folder: once you've chosen where one document goes, send the rest of that folder's documents to the same place in one tap.\n- Unwip remembers where you sent each folder's documents. Bring in another book with a folder of the same name and its guess is where you put it last time.";
+window.UNWIP_VERSION = "0.45.2";
+window.UNWIP_LATEST_NOTES = "- Unwip Dev: importing a Scrivener project from Dropbox now uses the same read-only permission as the normal Unwip, so it can find your projects anywhere in your Dropbox. Before, it could only look inside Dev's own folder. It asks once on each device, separately from syncing, and can't change anything in your Dropbox.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
