@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.45.3";
-window.UNWIP_LATEST_NOTES = "- Fixed: importing from Scrivener on an iPhone or iPad could ask you to sign in to Dropbox again for no good reason. If Dropbox was busy at the moment Unwip renewed its sign-in, the sign-in was thrown away. Now it's kept, and you're told to try again in a minute. Only Dropbox saying the sign-in is no longer valid asks you to sign in again.";
+window.UNWIP_VERSION = "0.45.4";
+window.UNWIP_LATEST_NOTES = "- Fixed: in the import room, a cast list (or a list of places or things) came in as one document unless you pressed \"One page per person\". Choosing a section, Next document, Use Unwip's guesses or Apply to all in folder skipped the split without saying. Now a list waits for your answer, \"One page per person\" or \"Keep it as one document\", and the question stays highlighted until you choose. Use Unwip's guesses and Apply to all in folder show every list they move in one \"Make the sheets\" window.\n- iPhone: BETA (and DEV) now sit small under the Unwip logo, so the Dropbox button has room to say what it's doing. While syncing it says \"Sending 12 of 86\u2026\" with a thin bar underneath.\n- Already imported a book whose lists came in whole? Press and hold Characters (right-click on a PC) \u203a Turn lists in here into sheets\u2026";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;

@@ -160,7 +160,11 @@ window.UnwipDropbox = (function () {
     if (p.phase === 'list') return short ? `Checking… ${(p.found || 0).toLocaleString()}` : `Checking Dropbox… ${(p.found || 0).toLocaleString()} files`;
     const left = Math.max(0, p.todo - p.done);
     if (p.waiting) return short ? 'Dropbox busy, waiting…' : 'Dropbox asked Unwip to slow down for a moment, carrying on shortly…';
-    if (short) return left ? `Syncing… ${left.toLocaleString()} left` : 'Syncing…';
+    if (short) {
+      if (!p.todo || !left) return 'Syncing…';
+      const verb = p.up && !p.down ? 'Sending' : p.down && !p.up ? 'Fetching' : 'Syncing';
+      return `${verb} ${Math.min(p.done + 1, p.todo).toLocaleString()} of ${p.todo.toLocaleString()}…`;
+    }
     const xfer = (p.down || p.up) ? ` (↓${p.down || 0} ↑${p.up || 0})` : '';
     return left ? `Syncing… ${left.toLocaleString()} file${left === 1 ? '' : 's'} left${xfer}` : 'Syncing… finishing';
   }
@@ -694,7 +698,8 @@ window.UnwipDropbox = (function () {
     if (!pill) { pill = document.createElement('button'); pill.id = 'dbx-pill'; pill.className = 'dbx-pill'; head.insertBefore(pill, head.firstChild); pill.onclick = pillClick; }
     const s = statusText(true);
     const mark = s.cls === 'news' ? '<b class="dbx-warn">⚠</b>' : s.cls === 'pending' ? '<i class="dbx-dot"></i>' : '';
-    pill.className = 'dbx-pill ' + s.cls; pill.innerHTML = CLOUD + mark + `<span>${esc(s.text)}</span>`;
+    const pct = running && progress && progress.todo ? Math.round(100 * Math.min(1, (progress.done || 0) / progress.todo)) : -1;
+    pill.className = 'dbx-pill ' + s.cls; pill.innerHTML = CLOUD + mark + `<span>${esc(s.text)}</span>` + (pct >= 0 ? `<i class="dbx-bar"><b style="width:${pct}%"></b></i>` : '');
     // in the writing screen, a small cloud button beside the book's name (same states, tap to sync)
     const tb = document.querySelector('#workspace .tb-left');
     let mini = document.getElementById('dbx-mini');

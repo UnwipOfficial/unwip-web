@@ -1858,6 +1858,10 @@ html.m-phone #st-session, html.m-phone #st-today { pointer-events: none; }
 /* ---- Dropbox (iPhone / iPad version) */
 .dbx-pill { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 99px; border: 1px solid var(--line); background: var(--paper); color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; margin-right: 10px; white-space: nowrap; }
 .dbx-pill.ok svg { color: #0061fe; }
+.dbx-pill { position: relative; }
+.dbx-bar { position: absolute; left: 12px; right: 12px; bottom: 3px; height: 2px; border-radius: 2px; background: color-mix(in srgb, currentColor 18%, transparent); overflow: hidden; }
+.dbx-bar b { display: block; height: 100%; background: #0061fe; border-radius: 2px; }
+:root[data-theme="dark"] .dbx-bar b { background: #6aa8ff; }
 :root[data-theme="dark"] .dbx-pill.ok svg { color: #6aa8ff; }
 .dbx-pill.off { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .dbx-pill.busy svg { animation: pulse 1.2s ease-in-out infinite; color: #0061fe; }
@@ -2397,15 +2401,18 @@ body.book-font .doc-synopsis, body.book-font .ol-syn, body.book-font .ck-card, b
   /* one tidy header: the name with sync and settings, then Write / Play across the width */
   /* the name keeps its size; sync, record and settings share what's left, and the sync pill shortens with … */
   .lib-head { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 8px; row-gap: 10px; padding: 10px 14px; }
-  .lib-head .brand { grid-column: 1; grid-row: 1; min-width: 0; }
-  .lib-head .brand-wordmark { height: 28px; }
-  .lib-head .brand-beta { margin: 0 0 0 4px; padding: 1px 6px; font-size: 10px; }
+  .lib-head .brand { grid-column: 1; grid-row: 1; min-width: 0; display: grid; grid-auto-flow: column; grid-template-rows: auto auto; justify-content: start; align-items: center; column-gap: 4px; row-gap: 3px; }
+  .lib-head .brand-wordmark { height: 28px; grid-row: 1; grid-column: 1 / span 3; }
+  .lib-head .brand-beta, .lib-head .dev-tag { grid-row: 2; justify-self: start; }
+  .lib-head .brand-slogan { display: none; }
+  /* BETA and DEV sit small under the name, so the sync pill has room to say what it's doing */
+  .lib-head .brand-beta, .lib-head .dev-tag { margin: 0; padding: 1px 6px; font-size: 9.5px; line-height: 1.4; letter-spacing: .06em; }
   .lib-head-right { grid-column: 2; grid-row: 1; gap: 4px; min-width: 0; justify-content: flex-end; }
   .lib-head-right > * { flex-shrink: 0; }
-  .lib-head-right > .dbx-pill { flex-shrink: 1; min-width: 34px; }
+  .lib-head-right > .dbx-pill { flex: 1 1 auto; min-width: 34px; }
   .lib-head .lib-tabs { grid-column: 1 / -1; grid-row: 2; margin: 0; }
   .lib-head .lib-tabs button { flex: 1; padding: 7px 0; }
-  .dbx-pill { margin-right: 0; max-width: 52vw; overflow: hidden; }
+  .dbx-pill { margin-right: 0; max-width: none; overflow: hidden; height: 34px; }
   .dbx-pill span { overflow: hidden; text-overflow: ellipsis; }
   /* the goal button sits under the dials instead of over them */
   .dash-setgoal { position: static; flex-basis: 100%; order: 9; }
@@ -3838,6 +3845,7 @@ body.litrpg .editor p.lit-sys.lit-plain, body.litrpg #editor p.lit-sys.lit-plain
 .ir-now-l { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: 13.5px; } .ir-now-l .on { color: var(--text); font-weight: 600; } .ir-now-m { opacity: .7; }
 .ir-remind { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 26px 10px; padding: 12px 16px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); font-size: 14.5px; }
 .ir-remind span { flex: 1; min-width: 200px; }
+.ir-q.ir-ask { color: var(--text); font-weight: 600; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); border-left: 3px solid var(--accent); }
 .ir-guess { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; color: var(--muted); padding: 8px 12px; border-radius: 10px; border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--line)); }
 .ir-guess b { color: var(--text); } .ir-guess .btn { margin-left: auto; } .ir-guess.agree { border-style: solid; border-color: var(--line); }
 .ir-dests .btn.ir-guessed { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }

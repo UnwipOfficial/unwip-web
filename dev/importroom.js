@@ -386,6 +386,14 @@ window.UnwipImportRoom = (function () {
     return st.came[id];
   }
   const isDone = id => ((S.project.importSort || {}).done || []).includes(id);
+  // a list (people, places, things) waits for "one page each" or "keep it as one document"; choosing a section or
+  // pressing Next used to tick it off whole, so the split the card offered was quietly skipped
+  const decided = id => !!(((S.project.importSort || {}).split || {})[id]);
+  const placed = id => ((S.project.importSort || {}).placed || []).includes(id);
+  const markPlaced = id => { const st = S.project.importSort; st.placed = st.placed || []; if (!st.placed.includes(id)) st.placed.push(id); };
+  const decide = (id, how) => { const st = S.project.importSort; st.split = st.split || {}; st.split[id] = how; U.scheduleMeta(); };
+  const isList = id => !!listOf(cache[id]);
+  const undecidedList = id => isList(id) && !decided(id);
   const markDone = id => { const st = S.project.importSort; if (st && !st.done.includes(id)) { st.done.push(id); U.scheduleMeta(); } };
   // A list of names (people, places, things) can become one page each. A single character's sheet ("Name: …",
   // "Age: …", "Hair: …") is fields, not a list, so it isn't offered.
@@ -424,7 +432,7 @@ window.UnwipImportRoom = (function () {
       if (!nowIn || nowIn.kind === 'trash') return nowIn ? '<div class="ir-now"><b>Left out.</b> It’s in the Trash, where you can still get it back.</div>' : '';
       const sib = []; U.walkTree(nowIn.children || [], n => { if (n.type === 'doc') sib.push(n); });
       const i = sib.findIndex(n => n.id === it.n.id), from = Math.max(0, Math.min(i - 2, sib.length - 5)), part = sib.slice(from, from + 5);
-      const apply = isDone(it.n.id) && sameFolder.length ? `<button type="button" class="btn small ir-apply" data-apply>Apply to all in folder (${sameFolder.length} more from “${esc(it.from)}”)</button>` : '';
+      const apply = (isDone(it.n.id) || placed(it.n.id)) && sameFolder.length ? `<button type="button" class="btn small ir-apply" data-apply>Apply to all in folder (${sameFolder.length} more from “${esc(it.from)}”)</button>` : '';
       return `<div class="ir-now"><b>${it.from && it.from !== nowIn.title ? `Now in ${esc(nowIn.title)}` : `In ${esc(nowIn.title)}`}</b>${apply}
         <div class="ir-now-l">${from ? `<span class="ir-now-m">… ${from} more</span>` : ''}${part.map(n => `<span class="${n.id === it.n.id ? 'on' : ''}">${n.id === it.n.id ? '▸ ' : ''}${esc(n.title || 'Untitled')}</span>`).join('')}${sib.length > from + 5 ? `<span class="ir-now-m">… ${sib.length - from - 5} more</span>` : ''}</div></div>`;
     };
@@ -438,7 +446,7 @@ window.UnwipImportRoom = (function () {
           <div class="ir-card-h"><b>${esc(it.n.title || 'Untitled')}</b><span>${pl(it.n.words || 0, 'word')}</span></div>
           <span class="ir-from">From: ${esc(it.from || '')}</span>
           <div class="ir-peek">${previewHTML(cache[it.n.id])}</div>
-          ${lst ? `<div class="ir-q">It lists ${lst.count} ${noun[1]}. How should it come in?</div>
+          ${lst && !decided(it.n.id) ? `<div class="ir-q ${isDone(it.n.id) ? '' : 'ir-ask'}">It lists ${lst.count} ${noun[1]}. How should it come in?</div>
             <div class="ir-two"><button type="button" class="btn primary" data-pages>One page per ${noun[0]} (${lst.count} pages)</button><button type="button" class="btn" data-whole>Keep it as one document</button></div>` : ''}
           ${g && rootByKind(g.kind) ? (g.kind === where(it.n.id) ? `<div class="ir-guess agree">Unwip’s guess: <b>${esc(rootTitle(g.kind))}</b>, where it is now · ${esc(g.why)}</div>`
             : `<div class="ir-guess">Unwip’s guess: <b>${esc(rootTitle(g.kind))}</b> · ${esc(g.why)}<button type="button" class="btn small primary" data-guess>Put it there</button></div>`) : ''}
@@ -452,7 +460,7 @@ window.UnwipImportRoom = (function () {
     </div>`;
     const again = () => { remember(body, it && it.n.id); stepDocs(kind); };
     $$('.ir-li', body).forEach(b => b.onclick = () => { sel = +b.dataset.i; stepDocs(kind); });
-    const nav = d => { if (d > 0 && it) markDone(it.n.id); sel = Math.max(0, Math.min(list.length - 1, sel + d)); stepDocs(kind); };
+    const nav = d => { if (d > 0 && it && !undecidedList(it.n.id)) markDone(it.n.id); sel = Math.max(0, Math.min(list.length - 1, sel + d)); stepDocs(kind); };
     const pv = $('[data-prev]', body); if (pv) pv.onclick = () => nav(-1);
     const sk = $('[data-skip]', body); if (sk) sk.onclick = () => nav(1);
     // choosing a section moves it there and shows the result; Next document moves on
@@ -460,16 +468,22 @@ window.UnwipImportRoom = (function () {
       const k = b.dataset.to;
       if (k === 'trash') { const t = U.findNode('root-trash'); if (t && where(it.n.id) !== 'trash') { const f = U.findNode(it.n.id); f.list.splice(f.index, 1); t.node.children.push(f.node); U.scheduleMeta(); U.renderBinder(); } }
       else if (where(it.n.id) !== k) moveToRoot(it.n.id, k);
-      markDone(it.n.id); rememberChoice(it.n.id); again();
+      markPlaced(it.n.id); if (!undecidedList(it.n.id)) markDone(it.n.id); rememberChoice(it.n.id); again();
     });
     const sendTo = (id, k) => {
       if (k === 'trash') { const t = U.findNode('root-trash'), f = U.findNode(id); if (t && f && U.rootOf(id).kind !== 'trash') { f.list.splice(f.index, 1); t.node.children.push(f.node); } }
       else if (where(id) !== k) moveToRoot(id, k);
-      markDone(id);
+      if (!undecidedList(id)) markDone(id);
+    };
+    // the lists among some documents just moved together: one review window for all of them ("Make the sheets")
+    const splitLists = async ids => {
+      const lists = ids.filter(id => U.findNode(id) && undecidedList(id) && U.rootOf(id).kind !== 'trash'); if (!lists.length || !window.UnwipSheets) return;
+      await window.UnwipSheets.convert(lists); cache = {};
+      for (const id of lists) if (!U.findNode(id) || !isList(id)) { decide(id, 'pages'); markDone(id); }
     };
     const gb = $('[data-guess]', body); if (gb) gb.onclick = () => { sendTo(it.n.id, g.kind); rememberChoice(it.n.id); again(); };
-    const ua = $('[data-useall]', body); if (ua) ua.onclick = () => { for (const x of guessable) sendTo(x.n.id, G[x.n.id].kind); U.scheduleMeta(); U.renderBinder(); U.toast(`${pl(guessable.length, 'document')} went where Unwip guessed. Anything can still be moved.`); again(); };
-    const ap = $('[data-apply]', body); if (ap) ap.onclick = () => { const k = where(it.n.id); for (const x of sameFolder) sendTo(x.n.id, k); U.scheduleMeta(); U.renderBinder(); U.toast(`${pl(sameFolder.length, 'more document')} from “${esc(it.from)}” went to ${esc(nowIn.title)}.`); again(); };
+    const ua = $('[data-useall]', body); if (ua) ua.onclick = async () => { for (const x of guessable) sendTo(x.n.id, G[x.n.id].kind); U.scheduleMeta(); U.renderBinder(); U.toast(`${pl(guessable.length, 'document')} went where Unwip guessed. Anything can still be moved.`); await splitLists(guessable.map(x => x.n.id)); again(); };
+    const ap = $('[data-apply]', body); if (ap) ap.onclick = async () => { const k = where(it.n.id); for (const x of sameFolder) sendTo(x.n.id, k); U.scheduleMeta(); U.renderBinder(); U.toast(`${pl(sameFolder.length, 'more document')} from “${esc(it.from)}” went to ${esc(nowIn.title)}.`); await splitLists([it.n.id, ...sameFolder.map(x => x.n.id)]); again(); };
     const ns = $('[data-newsec]', body); if (ns) ns.onclick = async () => {
       const before = new Set(S.project.binder.map(r => r.id));
       if (U.templateGallery) await U.templateGallery();
@@ -477,8 +491,8 @@ window.UnwipImportRoom = (function () {
       if (made) { moveToRoot(it.n.id, made.kind); markDone(it.n.id); rememberChoice(it.n.id); }
       again();
     };
-    const pg = $('[data-pages]', body); if (pg) pg.onclick = async () => { const id = it.n.id; await window.UnwipSheets.convert([id]); cache = {}; if (U.findNode(id)) markDone(id); again(); };
-    const wh = $('[data-whole]', body); if (wh) wh.onclick = () => nav(1);
+    const pg = $('[data-pages]', body); if (pg) pg.onclick = async () => { const id = it.n.id; await window.UnwipSheets.convert([id]); cache = {}; if (!U.findNode(id) || !isList(id)) { decide(id, 'pages'); markDone(id); } again(); };
+    const wh = $('[data-whole]', body); if (wh) wh.onclick = () => { decide(it.n.id, 'whole'); markDone(it.n.id); nav(1); };
     $$('[data-make]', body).forEach(b => b.onclick = async () => { await makePerson(b.dataset.make); U.toast(`A page for <b>${esc(b.dataset.make)}</b> is in Characters.`); again(); });
     $$('[data-not]', body).forEach(b => b.onclick = () => { const st = S.project.importSort; st.notNames = [...new Set([...(st.notNames || []), b.dataset.not])]; U.scheduleMeta(); again(); });
     // moving on to the next step with documents here not looked at yet: a gentle reminder first
