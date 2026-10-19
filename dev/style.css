@@ -3909,6 +3909,10 @@ body.litrpg .editor p.lit-sys.lit-plain, body.litrpg #editor p.lit-sys.lit-plain
 .so-card b { font-family: var(--book-font, Georgia), Georgia, serif; font-size: 21px; } .so-card > span:last-child { color: var(--muted); font-size: 15px; line-height: 1.55; }
 .so-ic { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 18%, var(--panel)); color: var(--accent); }
 .so-ic-out { background: color-mix(in srgb, #d9a93a 20%, var(--panel)); color: #b9851c; }
+.so-incol { display: flex; flex-direction: column; gap: 12px; } .so-incol .so-card { flex: 1; }
+.so-guide { display: flex; gap: 12px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; cursor: pointer; }
+.so-guide input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--accent); flex: none; }
+.so-guide span { display: flex; flex-direction: column; gap: 2px; } .so-guide small { color: var(--muted); font-size: 13.5px; }
 .so-recent { display: flex; flex-direction: column; gap: 10px; } .so-foot { text-align: center; }
 .so-pad { gap: 18px; }
 .so-books { display: flex; flex-wrap: wrap; gap: 12px; }

@@ -89,13 +89,24 @@ window.UnwipSendOut = (function () {
     body.innerHTML = `<div class="so-ch">
       <div class="so-ch-h"><h1>Moving a book?</h1><p class="ir-sub">Coming in or going out, it’s one step at a time, and your words always come with you.</p></div>
       <div class="so-cards">
-        <button type="button" class="so-card" data-go="in"><span class="so-ic so-ic-in">${ICON.in}</span><b>Bring a book in</b><span>From Scrivener, Word, Google Docs, Obsidian or Markdown. It comes in as it is, then you sort it a section at a time.</span></button>
+        <div class="so-incol"><button type="button" class="so-card" data-go="in"><span class="so-ic so-ic-in">${ICON.in}</span><b>Bring a book in</b><span class="so-in-d"></span></button>
+        <label class="so-guide"><input type="checkbox" id="so-guide"><span><b>Guide me through imports</b><small class="so-guide-d"></small></span></label></div>
         <button type="button" class="so-card" data-go="out"><span class="so-ic so-ic-out">${ICON.out}</span><b>Send a book out</b><span>Back to Scrivener, or into Word, Google Docs, Obsidian or Markdown, in the shape you want. Unwip shows you anything that changes on the way.</span></button>
       </div>
       ${sent.length || sorting.length ? `<div class="so-recent"><div class="ir-cap">Recently</div>
         ${sent.map((x, n) => `<div class="ir-pend"><div><b>${esc(x.title)} → ${esc((DEST[x.to] || [x.to])[0])}</b><span>Sent out ${esc(when(x.at))} · ${esc((SHAPES[x.shape] || [''])[0])}${x.words ? ` · ${pl(x.words, 'word')}` : ''}</span></div><button type="button" class="btn" data-again="${n}">Send again</button></div>`).join('')}
         ${sorting.map(p => `<div class="ir-pend"><div><b>${esc(p.title)} ←</b><span>Brought in ${esc(when(p.sortingAt))} · still being sorted</span></div><button type="button" class="btn" data-carry="${esc(p.slug)}">Carry on</button></div>`).join('')}</div>` : ''}
       <p class="ir-hint so-foot">Export inside a book is where you preview every page and make a print-ready PDF or an EPUB to publish.</p></div>`;
+    // the import guide, switched here: "Bring a book in" says what it will do, and does it
+    const guideOn = () => !(S.settings && S.settings.importGuide === false);
+    const showGuide = () => {
+      const on = guideOn();
+      $('#so-guide', body).checked = on;
+      $('.so-in-d', body).textContent = on ? 'From Scrivener, Word, Google Docs, Obsidian or Markdown. It comes in as it is, then you sort it a section at a time, with Unwip’s guesses and previews.' : 'From Scrivener, Word, Google Docs, Obsidian or Markdown. Straight in as it is, without sorting afterwards.';
+      $('.so-guide-d', body).textContent = on ? 'On: after a book comes in, you go through it a section at a time.' : 'Off: books come straight in. Tick it to be guided next time.';
+    };
+    showGuide();
+    $('#so-guide', body).onchange = async e => { try { S.settings = await api.setSettings({ importGuide: e.target.checked }); } catch {} showGuide(); };
     $('[data-go="in"]', body).onclick = () => { if (room) room.remove(); room = null; window.UnwipImportRoom && window.UnwipImportRoom.open(); };
     $('[data-go="out"]', body).onclick = () => open({ slug: S.slug || '' });
     $$('[data-again]', body).forEach(b => b.onclick = () => { const x = sent[+b.dataset.again]; open({ slug: x.slug, to: x.to, shape: x.shape }); });

@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.45.5";
-window.UNWIP_LATEST_NOTES = "- Import room: a list's card now shows a small preview of each page it would make, laid out like that section's own sheet (Full name, Aliases and so on), with \u2039 \u203a to look through them and where they'll go. On an iPhone it folds away under the buttons and remembers whether you left it open.\n- Send a book out: the Structure step shows how a chapter will look in the app you chose: Scrivener's binder and page, a Word or Google Docs page, or an Obsidian or Markdown note. Use \u2039 \u203a to look at other chapters. What changes shows small samples too, like a character's gear list and the Story Bible.\n- Importing from Scrivener on an iPhone or iPad: if Dropbox is busy for a moment, Unwip quietly tries again a couple of times before telling you.";
+window.UNWIP_VERSION = "0.45.6";
+window.UNWIP_LATEST_NOTES = "- Import / Export: the \"Guide me through imports\" switch is now right under Bring a book in, so you can turn the guide on or off where you start. Bring a book in says what it will do: sort it a section at a time with Unwip's guesses and previews, or bring it straight in as it is. It's the same setting as in Settings.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
