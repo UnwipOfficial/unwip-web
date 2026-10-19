@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.45.2";
-window.UNWIP_LATEST_NOTES = "- Unwip Dev: importing a Scrivener project from Dropbox now uses the same read-only permission as the normal Unwip, so it can find your projects anywhere in your Dropbox. Before, it could only look inside Dev's own folder. It asks once on each device, separately from syncing, and can't change anything in your Dropbox.";
+window.UNWIP_VERSION = "0.45.3";
+window.UNWIP_LATEST_NOTES = "- Fixed: importing from Scrivener on an iPhone or iPad could ask you to sign in to Dropbox again for no good reason. If Dropbox was busy at the moment Unwip renewed its sign-in, the sign-in was thrown away. Now it's kept, and you're told to try again in a minute. Only Dropbox saying the sign-in is no longer valid asks you to sign in again.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;

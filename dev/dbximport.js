@@ -27,7 +27,12 @@ window.UnwipDropboxImport = (function () {
     if (st.access && st.exp > Date.now() + 60000) return st.access;
     if (!st.refresh) return null;
     const r = await SI.refreshRequest(KEY, st.refresh);
-    if (!r.ok) { st = {}; await save(); return null; }
+    if (!r.ok) {
+      // only Dropbox saying the sign-in is no good any more (400 invalid_grant, 401) means signing in again; "busy" (429)
+      // or a hiccup (5xx) used to throw the sign-in away too, so the import asked to sign in again after a bad moment
+      if (r.status === 400 || r.status === 401) { st = {}; await save(); return null; }
+      throw new Error('Dropbox is busy right now, so the import can’t start. Try again in a minute. You’re still signed in.');
+    }
     const j = await r.json(); st.access = j.access_token; st.exp = Date.now() + (j.expires_in || 14400) * 1000; await save();
     return st.access;
   }
