@@ -3838,6 +3838,10 @@ body.litrpg .editor p.lit-sys.lit-plain, body.litrpg #editor p.lit-sys.lit-plain
 .ir-now-l { display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: 13.5px; } .ir-now-l .on { color: var(--text); font-weight: 600; } .ir-now-m { opacity: .7; }
 .ir-remind { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 26px 10px; padding: 12px 16px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); font-size: 14.5px; }
 .ir-remind span { flex: 1; min-width: 200px; }
+.ir-guess { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; color: var(--muted); padding: 8px 12px; border-radius: 10px; border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.ir-guess b { color: var(--text); } .ir-guess .btn { margin-left: auto; } .ir-guess.agree { border-style: solid; border-color: var(--line); }
+.ir-dests .btn.ir-guessed { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+.ir-useall { align-self: flex-end; } .ir-apply { align-self: flex-start; }
 .ir-split { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
 .ir-list { display: flex; flex-direction: column; gap: 6px; max-height: 62vh; overflow: auto; }
 .ir-li { text-align: left; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; cursor: pointer; }

@@ -97,6 +97,7 @@ window.UnwipImportRoom = (function () {
   async function afterImport(o = {}) {
     if (!guideOn() || !S.project) return false;
     S.project.importSort = { step: 'manuscript', from: o.from || 'Import', at: Date.now(), words: bookWords(), trash: trashWords(), notNames: [] };
+    msText = null;
     U.scheduleMeta(); await U.saveMetaNow().catch(() => {});
     await go('manuscript');
     return true;
@@ -263,7 +264,8 @@ window.UnwipImportRoom = (function () {
       U.walkTree(r.children || [], n => {
         if (n.type !== 'doc' || n.map) return;
         const parent = U.findNode(n.id).parent;
-        const people = r.kind === 'characters' || PEOPLE.test(n.title || '') || (parent && PEOPLE.test(parent.title || ''));
+        const g = ((S.project.importSort || {}).guess || {})[n.id];
+        const people = g && g.kind ? g.kind === 'characters' : (r.kind === 'characters' || PEOPLE.test(n.title || '') || (parent && PEOPLE.test(parent.title || '')));
         if ((kind === 'characters') === people) out.push({ n, root: r, from: parent && !parent.root ? parent.title : r.title });
       });
     }
@@ -276,6 +278,92 @@ window.UnwipImportRoom = (function () {
     for (const r of S.project.binder) if (r.custom) base.push([r.kind, r.title]);
     return [...base, ['trash', 'Leave out']];
   }
+  // ---------------------------------------------------------------- first guesses, by plain rules (no AI)
+  // Each document gets points toward a section from: where you put a folder of the same name last time, its title,
+  // the folder it came from, what's in it ([system] lines, a sheet of Age/Hair fields, place words, item words,
+  // prices), and whether its title is a name that keeps coming up in the chapters. The best one is the guess, if it's
+  // clearly ahead. Nothing moves until you say.
+  const KIND_RULES = {
+    characters: { t: PEOPLE, w: /\b(he|she|his|her|him|brother|sister|mother|father|wife|husband|friend|girlfriend|boyfriend|leader|son|daughter|uncle|aunt|cousin|lover|mentor|rival)\b/gi, say: 'talks about people' },
+    places: { t: /\b(places?|locations?|settings?|world|maps?|kingdoms?|cities|city|towns?|regions?|realms?|lands?|geography|countries|country|planets?)\b/i, w: /\b(town|city|village|castle|kingdom|river|mountains?|forest|harbou?r|port|tavern|inn|road|street|valley|island|lake|sea|desert|capital|district|temple|fortress|ruins|dungeon|cave|estate|abbey)\b/gi, say: 'mentions' },
+    items: { t: /\b(items?|gear|weapons?|armou?r|inventory|artifacts?|artefacts?|equipment|loot|potions?|relics?)\b/i, w: /\b(sword|blade|dagger|axe|bow|staff|wand|ring|amulet|necklace|potion|shield|helm|cloak|boots|gauntlets?|scroll|crossbow|rifle)\b/gi, say: 'mentions' },
+    research: { t: /\b(research|references?|sources?|inspiration|links?|reading)\b/i },
+    notes: { t: /\b(notes?|ideas?|to ?do|outline|plot|timeline|scratch|brainstorm|summary|prices?|costs?)\b/i }
+  };
+  const SYSTEM_T = /\b(system|stats?|skills?|abilit(?:y|ies)|class(?:es)?|levels?|msgs?|messages?|spells?|magic|perks?|quests?|questing)\b/i;
+  const STOP = new Set('the and for with from that this your into about notes note list lists book'.split(' '));
+  const wordsOf = t => String(t || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(w => w.length >= 4 && !STOP.has(w));
+  let msText = null;
+  async function manuscriptText() {
+    if (msText != null) return msText;
+    const ids = []; U.walkTree(U.findNode('root-manuscript').node.children || [], n => { if (n.type === 'doc') ids.push(n.id); });
+    const parts = []; for (const id of ids.slice(0, 600)) parts.push(textOf(await html(id)));
+    return (msText = parts.join('\n'));
+  }
+  async function guessFor(n, came) {
+    const P = S.project, h = await html(n.id), text = textOf(h), title = n.title || '', both = `${title} ${came || ''}`;
+    const roots = P.binder.filter(r => r.root && !['manuscript', 'trash', 'conflicts'].includes(r.kind));
+    const score = new Map(), why = new Map();
+    const add = (kind, pts, reason) => { if (!roots.some(r => r.kind === kind)) return; score.set(kind, (score.get(kind) || 0) + pts); if (reason) (why.get(kind) || why.set(kind, []).get(kind)).push([pts, reason]); };
+    // where you put a folder of this name last time
+    const mem = ((S.settings && S.settings.importMemory) || {})[String(came || '').toLowerCase()];
+    if (mem) { const r = roots.find(x => x.title.toLowerCase() === mem.toLowerCase()); if (r) add(r.kind, 10, `where you put “${came}” last time`); }
+    for (const [kind, R] of Object.entries(KIND_RULES)) {
+      // "notes" and "research" are loose words (people call all sorts of things notes), so they count for less
+      const loose = kind === 'notes' || kind === 'research';
+      if (R.t.test(title)) add(kind, loose ? 2 : 4, `called “${title}”`);
+      else if (came && R.t.test(came)) add(kind, loose ? 1 : 3, `from “${came}”`);
+    }
+    // a section of your own with words in common ("Monsters & Classes" for a document in "Monsters")
+    const bw = new Set(wordsOf(both));
+    for (const r of roots.filter(x => x.custom)) { const hit = wordsOf(r.title).find(w => bw.has(w)); if (hit) add(r.kind, 5, `shares “${hit}” with ${r.title}`); }
+    const sysRoot = roots.find(r => r.custom && SYSTEM_T.test(r.title));
+    if (SYSTEM_T.test(both)) add(sysRoot ? sysRoot.kind : 'notes', sysRoot ? 3 : 1, `about the system`);
+    // what's in it
+    const lines = text ? h.split(/<\/(?:p|li|h\d)>/i).map(x => textOf(x)).filter(Boolean) : [];
+    const br = lines.filter(l => /^\s*\[/.test(l)).length;
+    if (lines.length >= 3 && br >= lines.length * 0.5) add(sysRoot ? sysRoot.kind : 'notes', 5, 'mostly [system] lines');
+    if (window.UnwipSheets) { try { const r = window.UnwipSheets.parse(h); const names = r.groups.flatMap(g => g.entries.map(e => String(e.name || '').toLowerCase().trim())); if (names.filter(x => /^(age|hair|eyes|eye colou?r|gender|height|occupation|appearance|personality)$/.test(x)).length >= 2) add('characters', 6, 'a character sheet (Age, Hair…)'); } catch {} }
+    const words = Math.max(1, (text.match(/\S+/g) || []).length);
+    for (const kind of ['characters', 'places', 'items']) {
+      const R = KIND_RULES[kind], hits = text.match(R.w) || []; if (!hits.length) continue;
+      const per100 = hits.length * 100 / words, distinct = [...new Set(hits.map(x => x.toLowerCase()))];
+      const pts = Math.min(4, Math.round(per100 / (kind === 'characters' ? 2.5 : 1.2)));
+      if (pts > 0) add(kind, pts, kind === 'characters' ? R.say : `mentions ${distinct.slice(0, 2).map(w => /^[aeiou]/.test(w) ? 'an ' + w : 'a ' + w).join(', ')}`);
+    }
+    if (/\b(copper|silver|gold)\b[^.\n]{0,40}=|=\s*[^.\n]{0,20}\b(copper|silver|gold)\b/i.test(text)) add('notes', 3, 'prices');
+    // a title that's a name that keeps coming up in the chapters
+    if (/^\p{Lu}[\p{L}'’.-]*(\s\p{Lu}[\p{L}'’.-]*){0,2}$/u.test(title.trim()) && !KIND_RULES.places.w.test(title)) {
+      KIND_RULES.places.w.lastIndex = 0;
+      const ms = await manuscriptText(), esc2 = title.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const c = (ms.match(new RegExp(`(?<![\\p{L}])${esc2}(?![\\p{L}])`, 'gu')) || []).length;
+      if (c >= 5) add('characters', 5, `named ${c} times in your chapters`);
+    }
+    KIND_RULES.places.w.lastIndex = 0;
+    const ranked = [...score.entries()].sort((a, b) => b[1] - a[1]);
+    if (!ranked.length || ranked[0][1] < 3 || (ranked[1] && ranked[0][1] - ranked[1][1] < 2)) return null;
+    const k = ranked[0][0], reasons = (why.get(k) || []).sort((a, b) => b[0] - a[0]).map(x => x[1]);
+    return { kind: k, why: [...new Set(reasons)].slice(0, 2).join(' · ') };
+  }
+  // once per import: a guess for every document outside the manuscript
+  async function ensureGuesses() {
+    const st = S.project.importSort; if (!st) return;
+    st.guess = st.guess || {};
+    for (const r of S.project.binder) {
+      if (!r.root || ['manuscript', 'trash', 'conflicts'].includes(r.kind)) continue;
+      const todo = []; U.walkTree(r.children || [], n => { if (n.type === 'doc' && !n.map && !(n.id in st.guess)) todo.push(n); });
+      for (const n of todo) st.guess[n.id] = await guessFor(n, fromOf(n.id)).catch(() => null);
+    }
+    U.scheduleMeta();
+  }
+  // where you send a folder's documents is remembered (on this device's settings, by the folder's name) for next time
+  async function rememberChoice(id) {
+    const came = fromOf(id), r = U.rootOf(id); if (!came || !r || r.kind === 'trash') return;
+    const mem = { ...((S.settings && S.settings.importMemory) || {}) }; const key = came.toLowerCase();
+    if (mem[key] === r.title) return;
+    mem[key] = r.title; try { S.settings = await api.setSettings({ importMemory: mem }); } catch {}
+  }
+
   // Each step keeps its own list from the moment you first reach it (importSort.lists), so a document you send to
   // Places stays here, showing where it went, instead of vanishing from under you. A document is "done" once you
   // choose where it goes, keep it whole, make it pages, or go past it with Next (importSort.done).
@@ -314,7 +402,10 @@ window.UnwipImportRoom = (function () {
   async function stepDocs(kind) {
     const { body, foot } = shell(kind);
     footer(foot, kind === 'characters' ? STEPS[1] : STEPS[2], kind === 'characters' ? STEPS[3] : STEPS[4]);
+    await ensureGuesses();
     const list = stepList(kind);
+    const G = (S.project.importSort || {}).guess || {};
+    const rootTitle = k => (rootByKind(k) || {}).title || k;
     for (const it of list) await html(it.n.id);
     if (sel >= list.length) sel = Math.max(0, list.length - 1);
     const names = kind === 'characters' ? await suggestNames() : [];
@@ -323,16 +414,23 @@ window.UnwipImportRoom = (function () {
     const done = list.filter(x => isDone(x.n.id)).length;
     const lst = it ? listOf(cache[it.n.id]) : null, noun = it ? nounFor(where(it.n.id), lst && lst.abilities) : null;
     const nowIn = it ? U.rootOf(it.n.id) : null;
+    const g = it && G[it.n.id];
+    // the rest of this step that Unwip has a guess for, somewhere else than where they are
+    const guessable = list.filter(x => !isDone(x.n.id) && G[x.n.id] && rootByKind(G[x.n.id].kind) && G[x.n.id].kind !== where(x.n.id));
+    // the others from the same folder, not done yet
+    const sameFolder = it ? list.filter(x => x !== it && !isDone(x.n.id) && x.from === it.from) : [];
     // the section it's in now, with this document marked, so you can see what choosing a section did
     const sectionPeek = () => {
       if (!nowIn || nowIn.kind === 'trash') return nowIn ? '<div class="ir-now"><b>Left out.</b> It’s in the Trash, where you can still get it back.</div>' : '';
       const sib = []; U.walkTree(nowIn.children || [], n => { if (n.type === 'doc') sib.push(n); });
       const i = sib.findIndex(n => n.id === it.n.id), from = Math.max(0, Math.min(i - 2, sib.length - 5)), part = sib.slice(from, from + 5);
-      return `<div class="ir-now"><b>${it.from && it.from !== nowIn.title ? `Now in ${esc(nowIn.title)}` : `In ${esc(nowIn.title)}`}</b>
+      const apply = isDone(it.n.id) && sameFolder.length ? `<button type="button" class="btn small ir-apply" data-apply>Apply to all in folder (${sameFolder.length} more from “${esc(it.from)}”)</button>` : '';
+      return `<div class="ir-now"><b>${it.from && it.from !== nowIn.title ? `Now in ${esc(nowIn.title)}` : `In ${esc(nowIn.title)}`}</b>${apply}
         <div class="ir-now-l">${from ? `<span class="ir-now-m">… ${from} more</span>` : ''}${part.map(n => `<span class="${n.id === it.n.id ? 'on' : ''}">${n.id === it.n.id ? '▸ ' : ''}${esc(n.title || 'Untitled')}</span>`).join('')}${sib.length > from + 5 ? `<span class="ir-now-m">… ${sib.length - from - 5} more</span>` : ''}</div></div>`;
     };
     body.innerHTML = `<div class="ir-pad ir-docs">
       <div class="ir-h"><div><h1>${kind === 'characters' ? 'Characters' : 'Places, items and notes'}</h1><p class="ir-sub">${list.length ? `Pick where each document goes. Unwip has made a first guess: ${kind === 'characters' ? 'these look like they’re about people' : 'everything else from your import'}.` : 'Nothing here to sort. On to the next step.'}</p></div>
+        ${guessable.length ? `<button type="button" class="btn small ir-useall" data-useall title="Each one goes where Unwip guessed, and is ticked off">Use Unwip’s guesses for the rest (${guessable.length})</button>` : ''}
         ${list.length ? `<div class="ir-prog"><span class="ir-count">Document ${sel + 1} of ${list.length} · ${done} done</span><span class="ir-prog-bar"><i style="width:${Math.round(100 * done / list.length)}%"></i></span></div>` : ''}</div>
       ${list.length ? `<div class="ir-split">
         <aside class="ir-list">${list.map((x, i) => `<button type="button" class="ir-li ${i === sel ? 'on' : ''} ${isDone(x.n.id) ? 'done' : ''}" data-i="${i}"><b>${isDone(x.n.id) ? '<i class="ir-tick">✓</i>' : ''}${esc(x.n.title || 'Untitled')}</b><span>${esc(placeOf(x))}</span></button>`).join('')}</aside>
@@ -342,8 +440,10 @@ window.UnwipImportRoom = (function () {
           <div class="ir-peek">${previewHTML(cache[it.n.id])}</div>
           ${lst ? `<div class="ir-q">It lists ${lst.count} ${noun[1]}. How should it come in?</div>
             <div class="ir-two"><button type="button" class="btn primary" data-pages>One page per ${noun[0]} (${lst.count} pages)</button><button type="button" class="btn" data-whole>Keep it as one document</button></div>` : ''}
+          ${g && rootByKind(g.kind) ? (g.kind === where(it.n.id) ? `<div class="ir-guess agree">Unwip’s guess: <b>${esc(rootTitle(g.kind))}</b>, where it is now · ${esc(g.why)}</div>`
+            : `<div class="ir-guess">Unwip’s guess: <b>${esc(rootTitle(g.kind))}</b> · ${esc(g.why)}<button type="button" class="btn small primary" data-guess>Put it there</button></div>`) : ''}
           <div class="ir-q">Where does it go?</div>
-          <div class="ir-dests">${dests().map(([k, l]) => `<button type="button" class="btn ${where(it.n.id) === k ? 'primary' : ''} ${k === 'trash' ? 'ir-out' : ''}" data-to="${esc(k)}">${esc(l)}</button>`).join('')}<button type="button" class="btn ghost ir-newsec" data-newsec>+ New section…</button></div>
+          <div class="ir-dests">${dests().map(([k, l]) => `<button type="button" class="btn ${where(it.n.id) === k ? 'primary' : ''} ${k === 'trash' ? 'ir-out' : ''} ${g && g.kind === k && where(it.n.id) !== k ? 'ir-guessed' : ''}" data-to="${esc(k)}">${esc(l)}</button>`).join('')}<button type="button" class="btn ghost ir-newsec" data-newsec>+ New section…</button></div>
           ${sectionPeek()}
           <div class="ir-nav"><button type="button" class="btn ghost" data-prev ${sel ? '' : 'disabled'}>‹ Previous</button><button type="button" class="btn ${isDone(it.n.id) ? 'primary' : 'ghost'}" data-skip ${sel < list.length - 1 ? '' : 'disabled'}>Next document ›</button></div>
         </article></div>` : ''}
@@ -360,13 +460,21 @@ window.UnwipImportRoom = (function () {
       const k = b.dataset.to;
       if (k === 'trash') { const t = U.findNode('root-trash'); if (t && where(it.n.id) !== 'trash') { const f = U.findNode(it.n.id); f.list.splice(f.index, 1); t.node.children.push(f.node); U.scheduleMeta(); U.renderBinder(); } }
       else if (where(it.n.id) !== k) moveToRoot(it.n.id, k);
-      markDone(it.n.id); again();
+      markDone(it.n.id); rememberChoice(it.n.id); again();
     });
+    const sendTo = (id, k) => {
+      if (k === 'trash') { const t = U.findNode('root-trash'), f = U.findNode(id); if (t && f && U.rootOf(id).kind !== 'trash') { f.list.splice(f.index, 1); t.node.children.push(f.node); } }
+      else if (where(id) !== k) moveToRoot(id, k);
+      markDone(id);
+    };
+    const gb = $('[data-guess]', body); if (gb) gb.onclick = () => { sendTo(it.n.id, g.kind); rememberChoice(it.n.id); again(); };
+    const ua = $('[data-useall]', body); if (ua) ua.onclick = () => { for (const x of guessable) sendTo(x.n.id, G[x.n.id].kind); U.scheduleMeta(); U.renderBinder(); U.toast(`${pl(guessable.length, 'document')} went where Unwip guessed. Anything can still be moved.`); again(); };
+    const ap = $('[data-apply]', body); if (ap) ap.onclick = () => { const k = where(it.n.id); for (const x of sameFolder) sendTo(x.n.id, k); U.scheduleMeta(); U.renderBinder(); U.toast(`${pl(sameFolder.length, 'more document')} from “${esc(it.from)}” went to ${esc(nowIn.title)}.`); again(); };
     const ns = $('[data-newsec]', body); if (ns) ns.onclick = async () => {
       const before = new Set(S.project.binder.map(r => r.id));
       if (U.templateGallery) await U.templateGallery();
       const made = S.project.binder.find(r => r.root && !before.has(r.id));
-      if (made) { moveToRoot(it.n.id, made.kind); markDone(it.n.id); }
+      if (made) { moveToRoot(it.n.id, made.kind); markDone(it.n.id); rememberChoice(it.n.id); }
       again();
     };
     const pg = $('[data-pages]', body); if (pg) pg.onclick = async () => { const id = it.n.id; await window.UnwipSheets.convert([id]); cache = {}; if (U.findNode(id)) markDone(id); again(); };
