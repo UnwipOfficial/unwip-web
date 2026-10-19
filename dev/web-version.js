@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.44.98";
-window.UNWIP_LATEST_NOTES = "- Conflicted copies (a chapter changed on two devices at once) now sit in their own section below the Trash, like Scrivener's, and each copy has a \u26a0\ufe0f in your chapter list. Drag one out to wherever you want it and it becomes an ordinary document, or delete it.\n- Unwip Dev on an iPhone or iPad: importing from Scrivener no longer tells you to pick the project from Dropbox, which Dev can't do yet. It asks for a zip.";
+window.UNWIP_VERSION = "0.44.99";
+window.UNWIP_LATEST_NOTES = "- Unwip Dev can now connect to Dropbox, in a folder of its own (Dropbox \u203a Apps \u203a Unwip Dev), so syncing between devices can be tried on Dev before it reaches everyone. Your real books in Apps \u203a Unwip can't be reached from Dev. Dev's Scrivener import on an iPhone or iPad can pick a project straight from Dropbox too.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
