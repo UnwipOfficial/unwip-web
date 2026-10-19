@@ -344,8 +344,12 @@ window.UnwipImportRoom = (function () {
     if (/^\p{Lu}[\p{L}'’.-]*(\s\p{Lu}[\p{L}'’.-]*){0,2}$/u.test(title.trim()) && !KIND_RULES.places.w.test(title)) {
       KIND_RULES.places.w.lastIndex = 0;
       const ms = await manuscriptText(), esc2 = title.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const c = (ms.match(new RegExp(`(?<![\\p{L}])${esc2}(?![\\p{L}])`, 'gu')) || []).length;
-      if (c >= 5) add('characters', 5, `named ${c} times in your chapters`);
+      const hits = [...ms.matchAll(new RegExp(`(?<![\\p{L}])${esc2}(?![\\p{L}])`, 'gu'))], c = hits.length;
+      // a term, not a name (beta, 20 Oct: "Danger Rating" was guessed a person): mostly inside a [system message] or
+      // after "the", "a", "his"… in the chapters
+      const termish = hits.filter(m => { const before = ms.slice(Math.max(0, m.index - 60), m.index), line = before.slice(before.lastIndexOf('\n') + 1);
+        return /\[[^\]]*$/.test(line) || /\b(the|a|an|his|her|its|their|my|your|our|this|that)\s+$/i.test(line); }).length;
+      if (c >= 5 && termish < c * 0.4) add('characters', 5, `named ${c} times in your chapters`);
     }
     KIND_RULES.places.w.lastIndex = 0;
     const ranked = [...score.entries()].sort((a, b) => b[1] - a[1]);
@@ -400,6 +404,7 @@ window.UnwipImportRoom = (function () {
   const placed = id => ((S.project.importSort || {}).placed || []).includes(id);
   const markPlaced = id => { const st = S.project.importSort; st.placed = st.placed || []; if (!st.placed.includes(id)) st.placed.push(id); };
   const decide = (id, how) => { const st = S.project.importSort; st.split = st.split || {}; st.split[id] = how; U.scheduleMeta(); };
+  const kept = id => (((S.project.importSort || {}).split || {})[id]) === 'whole';
   const isList = id => !!listOf(cache[id]);
   const undecidedList = id => isList(id) && !decided(id);
   const markDone = id => { const st = S.project.importSort; if (st && !st.done.includes(id)) { st.done.push(id); U.scheduleMeta(); } };
@@ -466,14 +471,15 @@ window.UnwipImportRoom = (function () {
           <div class="ir-card-h"><b>${esc(it.n.title || 'Untitled')}</b><span>${pl(it.n.words || 0, 'word')}</span></div>
           <span class="ir-from">From: ${esc(it.from || '')}</span>
           <div class="ir-peek">${previewHTML(cache[it.n.id])}</div>
-          ${lst && !decided(it.n.id) ? `<div class="ir-q ${isDone(it.n.id) ? '' : 'ir-ask'}">It lists ${lst.count} ${noun[1]}. How should it come in?</div>
-            <div class="ir-two"><button type="button" class="btn primary" data-pages>One page per ${noun[0]} (${lst.count} pages)</button><button type="button" class="btn" data-whole>Keep it as one document</button></div>${previewBlock(it)}` : ''}
+          ${lst && (!decided(it.n.id) || kept(it.n.id)) ? `<div class="ir-q ${isDone(it.n.id) || kept(it.n.id) ? '' : 'ir-ask'}">It lists ${lst.count} ${noun[1]}. How should it come in?</div>
+            <div class="ir-two"><button type="button" class="btn ${kept(it.n.id) ? '' : 'primary'}" data-pages>One page per ${noun[0]} (${lst.count} pages)</button><button type="button" class="btn ${kept(it.n.id) ? 'primary' : ''}" data-whole aria-pressed="${kept(it.n.id)}">${kept(it.n.id) ? '✓ Kept as one document' : 'Keep it as one document'}</button></div>
+            ${kept(it.n.id) ? `<p class="ir-kept">It stays one document, as it looks above. Changed your mind? One page per ${esc(noun[0])} still works.</p>` : previewBlock(it)}` : ''}
           ${g && rootByKind(g.kind) ? (g.kind === where(it.n.id) ? `<div class="ir-guess agree">Unwip’s guess: <b>${esc(rootTitle(g.kind))}</b>, where it is now · ${esc(g.why)}</div>`
             : `<div class="ir-guess">Unwip’s guess: <b>${esc(rootTitle(g.kind))}</b> · ${esc(g.why)}<button type="button" class="btn small primary" data-guess>Put it there</button></div>`) : ''}
           <div class="ir-q">Where does it go?</div>
           <div class="ir-dests">${dests().map(([k, l]) => `<button type="button" class="btn ${where(it.n.id) === k ? 'primary' : ''} ${k === 'trash' ? 'ir-out' : ''} ${g && g.kind === k && where(it.n.id) !== k ? 'ir-guessed' : ''}" data-to="${esc(k)}">${esc(l)}</button>`).join('')}<button type="button" class="btn ghost ir-newsec" data-newsec>+ New section…</button></div>
           ${sectionPeek()}
-          <div class="ir-nav"><button type="button" class="btn ghost" data-prev ${sel ? '' : 'disabled'}>‹ Previous</button><button type="button" class="btn ${isDone(it.n.id) ? 'primary' : 'ghost'}" data-skip ${sel < list.length - 1 ? '' : 'disabled'}>Next document ›</button></div>
+          <div class="ir-nav"><button type="button" class="btn ghost" data-prev ${sel ? '' : 'disabled'}>‹ Previous</button><button type="button" class="btn ${isDone(it.n.id) ? 'primary' : 'ghost'}" data-skip>${sel < list.length - 1 ? 'Next document ›' : `Next: ${esc((kind === 'characters' ? STEPS[3] : STEPS[4])[1])} ›`}</button></div>
         </article></div>` : ''}
       ${names.length ? (() => { const sure = names.filter(x => x.sure), less = names.filter(x => !x.sure), row = x => `<div class="ir-name"><b>${esc(x.name)}</b><span>${pl(x.count, 'time')}</span><button type="button" class="btn small" data-make="${esc(x.name)}">Make a page</button><button type="button" class="btn ghost small" data-not="${esc(x.name)}">Not a person</button></div>`;
         return `<div class="ir-cap">Names that come up a lot in your chapters</div>${sure.length ? `<div class="ir-names">${sure.map(row).join('')}</div>` : ''}
@@ -485,7 +491,8 @@ window.UnwipImportRoom = (function () {
     $$('.ir-li', body).forEach(b => b.onclick = () => { sel = +b.dataset.i; stepDocs(kind); });
     const nav = d => { if (d > 0 && it && !undecidedList(it.n.id)) markDone(it.n.id); sel = Math.max(0, Math.min(list.length - 1, sel + d)); stepDocs(kind); };
     const pv = $('[data-prev]', body); if (pv) pv.onclick = () => nav(-1);
-    const sk = $('[data-skip]', body); if (sk) sk.onclick = () => nav(1);
+    // on the last document it goes on to the next step (beta, 20 Oct: it was greyed out there, and looked stuck)
+    const sk = $('[data-skip]', body); if (sk) sk.onclick = () => { if (sel < list.length - 1) return nav(1); if (it && !undecidedList(it.n.id)) markDone(it.n.id); const nx = $('.ir-next', foot); if (nx) nx.click(); };
     // choosing a section moves it there and shows the result; Next document moves on
     $$('[data-to]', body).forEach(b => b.onclick = () => {
       const k = b.dataset.to;
@@ -517,7 +524,7 @@ window.UnwipImportRoom = (function () {
     const pg = $('[data-pages]', body); if (pg) pg.onclick = async () => { const id = it.n.id; await window.UnwipSheets.convert([id]); cache = {}; if (!U.findNode(id) || !isList(id)) { decide(id, 'pages'); markDone(id); } again(); };
     $$('[data-pv]', body).forEach(b => b.onclick = () => { pvAt[it.n.id] = (pvAt[it.n.id] || 0) + +b.dataset.pv; again(); });
     const pvd = $('.ir-pv', body); if (pvd) pvd.ontoggle = () => { try { localStorage.setItem('unwip-ir-pv', pvd.open ? '1' : '0'); } catch {} };
-    const wh = $('[data-whole]', body); if (wh) wh.onclick = () => { decide(it.n.id, 'whole'); markDone(it.n.id); nav(1); };
+    const wh = $('[data-whole]', body); if (wh) wh.onclick = () => { decide(it.n.id, 'whole'); markDone(it.n.id); again(); };   // stays on the card, showing the choice (it used to jump to the next document)
     const more = $('.ir-more', body); if (more) more.ontoggle = () => { namesOpen = more.open; };
     $$('[data-make]', body).forEach(b => b.onclick = async () => { await makePerson(b.dataset.make); U.toast(`A page for <b>${esc(b.dataset.make)}</b> is in Characters.`); again(); });
     $$('[data-not]', body).forEach(b => b.onclick = () => { const st = S.project.importSort; st.notNames = [...new Set([...(st.notNames || []), b.dataset.not])]; U.scheduleMeta(); again(); });

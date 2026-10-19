@@ -97,6 +97,14 @@ window.UnwipSheets = (function () {
   }
   function parse(html) {
     const d = document.createElement('div'); d.innerHTML = html || '';
+    // lines kept apart by line breaks inside one paragraph (common from Scrivener, and Markdown with single line breaks)
+    // are lines of their own (beta, 20 Oct: "Debra - …<br>Stacey - …<br>Emilie - …" read as one entry, so no list)
+    for (const p of [...d.querySelectorAll('p')]) {
+      if (!p.querySelector('br') || p.querySelector('p, li')) continue;
+      const parts = p.innerHTML.split(/<br\s*\/?>/i);
+      if (parts.filter(h => h.replace(/<[^>]+>/g, '').replace(/&nbsp;|\u00a0/g, ' ').trim()).length < 2) continue;
+      p.replaceWith(...parts.map(h => { const q = document.createElement('p'); q.innerHTML = h; return q; }));
+    }
     const blocks = [...d.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li')].filter(b => !b.querySelector('p, li'));
     { const lines = blocks.map(b => b.textContent.trim()).filter(Boolean), br = lines.filter(t => BR.test(t)).length;
       if (br >= 3 && br >= lines.length * 0.5) return parseAbilities(blocks); }
@@ -104,6 +112,9 @@ window.UnwipSheets = (function () {
     for (const b of blocks) {
       const text = b.textContent.replace(/ /g, ' ').trim(); if (!text) continue;
       const lead = leadOf(b), lt = lead.trim();
+      // a whole line in [brackets] is a system message, not a name (beta, 20 Oct: "[Confirm Cost to Level 10]" was
+      // offered as a person's page)
+      if (/^\s*\[[^\]]*\]\s*$/.test(text)) { items.push({ k: 'more', html: b.outerHTML }); continue; }
       if (lt && lt.length <= 80 && lt.split(/\s+/).length <= 9) {
         const after = text.slice(text.indexOf(lt) + lt.length).trim();
         if (!after || /^[:：\-–—=|]*$/.test(after)) { items.push({ k: 'head', name: lt.replace(/[\s:：\-–—=|]+$/, ''), colon: /[:：]\s*$/.test(lt + after), heading: /^H/.test(b.tagName) }); continue; }
