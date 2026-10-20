@@ -3875,6 +3875,10 @@ body.litrpg .editor p.lit-sys.lit-plain, body.litrpg #editor p.lit-sys.lit-plain
 .ir-ph { font-weight: 700; } .ir-empty { color: var(--muted); }
 .ir-q { color: var(--muted); font-size: 14px; margin-top: 4px; }
 .ir-two { display: flex; gap: 8px; flex-wrap: wrap; }
+.ir-pick .btn[aria-pressed="true"] { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.ir-made { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); font-size: 13.5px; }
+.ir-made > span { flex: 1 1 200px; min-width: 0; }
+.ir-paper .ir-more-l { color: #8a857c; }
 .ir-dests { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .ir-dests .btn { min-height: 44px; justify-content: center; } .ir-dests .ir-out { color: var(--muted); }
 .ir-nav { display: flex; justify-content: space-between; }

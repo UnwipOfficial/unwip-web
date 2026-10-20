@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.45.8";
-window.UNWIP_LATEST_NOTES = "- Import room: \"Keep it as one document\" no longer jumps to the next document. It stays put and shows \u2713 Kept as one document, so you can see what you picked, and you can still choose one page per entry instead.\n- Import room: on the last document of a step, Next document goes on to the next step instead of being greyed out.\n- Import room: a list of people written on separate lines of one paragraph (common from Scrivener) is found as a list, with the one-page-per-person choice and its preview.\n- Import room: a notes page named after a game term (like \"Danger Rating\") is no longer guessed to be a person, and lines that are a whole [system message] aren't read as people's names.";
+window.UNWIP_VERSION = "0.45.9";
+window.UNWIP_LATEST_NOTES = "- Import room: for a list, \"One page per person\" and \"Keep it as one document\" are now a switch. Picking one only picks it, and the preview below shows what you'll get: each page, or the document as one page. Switch as often as you like. The pages are made when you move on.\n- Import room: every page made from a list says which list it came from, with \"Change back to one document\" to undo it.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;

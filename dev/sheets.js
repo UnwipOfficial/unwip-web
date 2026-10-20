@@ -219,6 +219,7 @@ window.UnwipSheets = (function () {
     const toTrash = !body.dataset.keep;
     const undo = [];
     let made = 0;
+    convert.last = [];   // what was made, by plain ids, so the import room can change it back later (beta, 20 Oct)
     for (const L of lists) {
       const f = U.findNode(L.id); if (!f) continue;
       const folder = { id: U.uid(), type: 'folder', title: L.node.title, open: true, children: [] };
@@ -234,7 +235,7 @@ window.UnwipSheets = (function () {
           const html = sheetHTML(L.root, e);
           await U.api.saveDoc(S.slug, n.id, html);
           n.words = U.countWords(e.text || '');
-          into.push(n); made++;
+          into.push(n); made++; (L.pages = L.pages || []).push(n.id);
         }
       }
       // the new folder takes the list's place when it was already in that section, otherwise it goes at the end of the section
@@ -242,6 +243,7 @@ window.UnwipSheets = (function () {
       if (L.newRoot) { /* the entries are already in the new section */ } else if (sameRoot) f.list.splice(f.index + 1, 0, folder); else L.root.children.push(folder);
       L.root.open = true;
       undo.push({ folder, id: L.id, newRoot: L.newRoot });
+      { const o = U.findNode(L.id); convert.last.push({ id: L.id, folder: L.newRoot ? null : folder.id, newRoot: L.newRoot ? L.newRoot.id : null, pages: L.pages || [], parent: o && o.parent ? o.parent.id : null, index: o ? o.index : 0 }); }
       if (toTrash) { const t = U.findNode(L.id); undo[undo.length - 1].from = { list: t.list, index: t.index }; t.list.splice(t.index, 1); U.findNode('root-trash').node.children.push(t.node); if (L.id === S.docId) S.docId = null; }
     }
     U.scheduleMeta(); U.renderBinder(); if (U.scheduleNames) U.scheduleNames(0);
