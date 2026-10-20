@@ -134,7 +134,7 @@ select, input { font: inherit; color: inherit; }
 .binder { width: 270px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
 .binder-scroll { flex: 1; overflow: auto; padding: 10px 6px 20px; }
 .binder-foot { display: flex; align-items: center; gap: 4px; padding: 8px; border-top: 1px solid var(--line); }
-.tree-row { display: flex; align-items: center; gap: 6px; height: 30px; padding-right: 8px; border-radius: 6px; cursor: default; user-select: none; position: relative; color: var(--text); }
+.tree-row { display: flex; align-items: center; gap: 6px; height: 30px; padding-right: 8px; border-radius: 6px; cursor: default; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; position: relative; color: var(--text); }
 .tree-row:hover { background: var(--panel-2); }
 .tree-row.selected { background: var(--accent-soft); color: var(--accent); }
 .tree-row.selected .tr-icon { color: var(--accent); }
@@ -3862,7 +3862,7 @@ body.litrpg .editor p.lit-sys.lit-plain, body.litrpg #editor p.lit-sys.lit-plain
 .ir-flip { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); margin-top: 8px; }
 .ir-q.ir-ask { color: var(--text); font-weight: 600; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); border-left: 3px solid var(--accent); }
 .ir-guess { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; color: var(--muted); padding: 8px 12px; border-radius: 10px; border: 1px dashed color-mix(in srgb, var(--accent) 55%, var(--line)); }
-.ir-guess b { color: var(--text); } .ir-guess .btn { margin-left: auto; } .ir-guess.agree { border-style: solid; border-color: var(--line); }
+.ir-guess b { color: var(--text); } .ir-g-t { flex: 1 1 220px; min-width: 0; line-height: 1.45; } .ir-guess .btn { margin-left: auto; } .ir-guess.agree { border-style: solid; border-color: var(--line); }
 .ir-dests .btn.ir-guessed { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
 .ir-useall { align-self: flex-end; } .ir-apply { align-self: flex-start; }
 .ir-split { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
@@ -4052,3 +4052,33 @@ body.writer .nav-chips { top: 14px; }
   #bi .bi-radio { flex-wrap: wrap; }
   #bi #bi-ptitle { width: 100%; flex: 1 1 100%; box-sizing: border-box; }
 }
+
+/* holding a row on an iPhone opens Unwip's menu, not the phone's text selection (beta, 20 Oct: a blue selection bar
+   and handle showed down the side) */
+#binder-tree, #binder-tree * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#binder-tree input { -webkit-user-select: text; user-select: text; }
+/* the menu that opens under a finger held on a row: the same hold mustn't go on to select its words (beta, 20 Oct:
+   "Change icon…" got selected, with Copy / Look Up / Translate). Buttons never select as text anywhere. */
+#menu, #menu * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+button { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* Edit the binder (iPhone and iPad, binderedit.js) */
+.be-btn[hidden] { display: none; }
+#be-top { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+#be-top b { font-size: 15px; } #be-top .be-hint { flex: 1; min-width: 0; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.bedit .binder-foot > :not(#be-bar) { display: none !important; }
+#be-bar { display: flex; align-items: center; gap: 8px; flex: 1; }
+#be-bar .be-trash { color: var(--danger, #c0392b); }
+html.bedit .fav-head, html.bedit .fav-row, html.bedit .tree-unsorted { display: none; }
+html.bedit #binder-tree { position: relative; }
+.be-ck { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--muted) 70%, transparent); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--paper); box-sizing: border-box; margin-right: 4px; }
+.be-ck.on { background: var(--accent); border-color: var(--accent); }
+.be-ck.in { background: color-mix(in srgb, var(--accent) 45%, transparent); border-color: transparent; }
+.be-grip { margin-left: auto; flex: none; padding: 8px 6px 8px 14px; font-size: 20px; line-height: 1; color: var(--muted); touch-action: none; cursor: grab; }
+html.bedit .tree-row .tr-count, html.bedit .tree-row .tr-words { display: none; }
+.tree-row.be-into { outline: 2px solid var(--accent); outline-offset: -2px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.tree-row.be-moving { opacity: .35; }
+#be-line { position: absolute; right: 8px; height: 3px; border-radius: 2px; background: var(--accent); pointer-events: none; z-index: 5; }
+#be-line::before { content: ''; position: absolute; left: -6px; top: -4px; width: 11px; height: 11px; border-radius: 50%; background: var(--accent); }
+#be-ghost { z-index: 960; pointer-events: none; background: var(--panel); border: 1px solid var(--accent); border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,.35); opacity: .95; display: flex; align-items: center; gap: 6px; box-sizing: border-box; }
+#be-ghost .be-count { background: var(--accent); color: var(--paper); border-radius: 99px; font-size: 12px; font-weight: 700; padding: 1px 8px; margin-left: 6px; }

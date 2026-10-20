@@ -408,7 +408,7 @@ window.UnwipImportRoom = (function () {
   // A list's two choices are a switch (beta, 20 Oct): picking one only picks it, and the preview follows. Pages are made
   // when you move on (another document, the next step, Sort the rest later), and can be changed back from any of them.
   const pickOf = id => { const st = S.project.importSort || {}; return (st.pick || {})[id] || (kept(id) ? 'whole' : null); };
-  const setPick = (id, how) => { const st = S.project.importSort; st.pick = st.pick || {}; st.pick[id] = how; decide(id, how); if (how === 'whole') markDone(id); U.scheduleMeta(); };
+  const setPick = (id, how, byUnwip) => { const st = S.project.importSort; st.pick = st.pick || {}; st.pick[id] = how; st.pickBy = st.pickBy || {}; if (byUnwip) st.pickBy[id] = 'unwip'; else delete st.pickBy[id]; decide(id, how); if (how === 'whole') markDone(id); U.scheduleMeta(); };
   const madeFrom = id => ((S.project.importSort || {}).made || []).find(m => m.pages.includes(id));
   let wantId = null;   // after a change, the document to show
   const isList = id => !!listOf(cache[id]);
@@ -438,12 +438,14 @@ window.UnwipImportRoom = (function () {
       <div class="ir-flip"><button type="button" class="icon-btn small" data-pv="-1" ${i ? '' : 'disabled'} aria-label="Previous page">‹</button><span>${i + 1} of ${P.items.length} · ${esc(e.name)}</span><button type="button" class="icon-btn small" data-pv="1" ${i < P.items.length - 1 ? '' : 'disabled'} aria-label="Next page">›</button></div></details>`;
   }
   // what keeping it whole looks like: the document as one page, in the section it's in
-  function wholePreview(it) {
+  // (plain: any document that isn't a list gets the same page preview, saying where it goes; beta, 20 Oct)
+  function wholePreview(it, plain) {
     const d = document.createElement('div'); d.innerHTML = cache[it.n.id] || '';
     const parts = [...d.children].slice(0, 8).map(x => x.outerHTML).join('') + (d.children.length > 8 ? '<p class="ir-more-l">…</p>' : '');
-    const r = U.rootOf(it.n.id);
-    return `<details class="ir-pv" ${pvOpen() ? 'open' : ''}><summary>Preview: one document</summary>
-      <div class="ir-pv-where">It stays in <b>${esc((r && r.title) || '')}</b>, as one page</div>
+    const r = U.rootOf(it.n.id), sec = esc((r && r.title) || '');
+    const where = plain ? (r && r.kind === 'trash' ? 'Left out: it’s in the Trash' : `It goes in <b>${sec}</b>`) : `It stays in <b>${sec}</b>, as one page`;
+    return `<details class="ir-pv" ${pvOpen() ? 'open' : ''}><summary>${plain ? 'Preview' : 'Preview: one document'}</summary>
+      <div class="ir-pv-where">${where}</div>
       <div class="ir-paper"><h3>${esc(it.n.title || 'Untitled')}</h3>${parts}</div></details>`;
   }
   const nounFor = (k, abil) => abil ? ['entry', 'entries'] : k === 'characters' ? ['person', 'people'] : k === 'places' ? ['place', 'places'] : k === 'items' ? ['thing', 'things'] : ['entry', 'entries'];
@@ -462,6 +464,12 @@ window.UnwipImportRoom = (function () {
     const where = id => { const r = U.rootOf(id); return r ? r.kind : ''; };
     const done = list.filter(x => isDone(x.n.id)).length;
     const lst = it ? listOf(cache[it.n.id]) : null, noun = it ? nounFor(where(it.n.id), lst && lst.abilities) : null;
+    // every list comes with Unwip's pick (beta, 20 Oct, option 1: lists left unanswered came back for a second pass):
+    // one page each in Characters, Places, Items or a template section, one document anywhere else. Switch any time.
+    { const st = S.project.importSort;
+      for (const x of list) if (!pickOf(x.n.id) && listOf(cache[x.n.id])) { const r = U.rootOf(x.n.id) || {}; setPick(x.n.id, ['characters', 'places', 'items'].includes(r.kind) || r.custom ? 'pages' : 'whole', true); }
+      void st; }
+    const byUnwip = id => (((S.project.importSort || {}).pickBy || {})[id]) === 'unwip';
     const nowIn = it ? U.rootOf(it.n.id) : null;
     const g = it && G[it.n.id];
     // the rest of this step that Unwip has a guess for, somewhere else than where they are
@@ -486,14 +494,14 @@ window.UnwipImportRoom = (function () {
         <article class="ir-card">
           <div class="ir-card-h"><b>${esc(it.n.title || 'Untitled')}</b><span>${pl(it.n.words || 0, 'word')}</span></div>
           <span class="ir-from">From: ${esc(it.from || '')}</span>
-          <div class="ir-peek">${previewHTML(cache[it.n.id])}</div>
+          ${lst || madeFrom(it.n.id) ? `<div class="ir-peek">${previewHTML(cache[it.n.id])}</div>` : wholePreview(it, true)}
           ${it && madeFrom(it.n.id) ? (() => { const m = madeFrom(it.n.id); return `<div class="ir-made"><span>Made from <b>${esc(m.title)}</b>, one of ${m.pages.length} pages.</span><button type="button" class="btn small" data-unsplit="${esc(m.id)}">Change back to one document</button></div>`; })() : ''}
           ${lst ? (() => { const p = pickOf(it.n.id); return `<div class="ir-q ${p ? '' : 'ir-ask'}">It lists ${lst.count} ${noun[1]}. How should it come in?</div>
             <div class="ir-two ir-pick" role="group" aria-label="How it comes in"><button type="button" class="btn ${p === 'pages' ? 'primary' : ''}" data-pages aria-pressed="${p === 'pages'}">${p === 'pages' ? '✓ ' : ''}One page per ${noun[0]} (${lst.count} pages)</button><button type="button" class="btn ${p === 'whole' ? 'primary' : ''}" data-whole aria-pressed="${p === 'whole'}">${p === 'whole' ? '✓ ' : ''}Keep it as one document</button></div>
-            ${p ? `<p class="ir-kept">${p === 'pages' ? `Picked. The ${lst.count} pages are made when you move on, and you can still switch.` : 'Picked. It stays one document. You can still switch.'}</p>` : ''}
+            ${p ? `<p class="ir-kept">${byUnwip(it.n.id) ? 'Unwip’s pick. ' : 'Picked. '}${p === 'pages' ? `The ${lst.count} pages are made when you move on. Switch if you’d rather.` : 'It stays one document. Switch if you’d rather.'}</p>` : ''}
             ${p === 'whole' ? wholePreview(it) : previewBlock(it)}`; })() : ''}
-          ${g && rootByKind(g.kind) ? (g.kind === where(it.n.id) ? `<div class="ir-guess agree">Unwip’s guess: <b>${esc(rootTitle(g.kind))}</b>, where it is now · ${esc(g.why)}</div>`
-            : `<div class="ir-guess">Unwip’s guess: <b>${esc(rootTitle(g.kind))}</b> · ${esc(g.why)}<button type="button" class="btn small primary" data-guess>Put it there</button></div>`) : ''}
+          ${g && rootByKind(g.kind) ? (g.kind === where(it.n.id) ? `<div class="ir-guess agree"><span class="ir-g-t">Unwip’s guess: <b>${esc(rootTitle(g.kind))}</b>, where it is now · ${esc(g.why)}</span></div>`
+            : `<div class="ir-guess"><span class="ir-g-t">Unwip’s guess: <b>${esc(rootTitle(g.kind))}</b> · ${esc(g.why)}</span><button type="button" class="btn small primary" data-guess>Put it there</button></div>`) : ''}
           <div class="ir-q">Where does it go?</div>
           <div class="ir-dests">${dests().map(([k, l]) => `<button type="button" class="btn ${where(it.n.id) === k ? 'primary' : ''} ${k === 'trash' ? 'ir-out' : ''} ${g && g.kind === k && where(it.n.id) !== k ? 'ir-guessed' : ''}" data-to="${esc(k)}">${esc(l)}</button>`).join('')}<button type="button" class="btn ghost ir-newsec" data-newsec>+ New section…</button></div>
           ${sectionPeek()}
@@ -537,7 +545,7 @@ window.UnwipImportRoom = (function () {
       if (stepList(kind).some(x => x.n.id === oid)) stepDocs(kind); else go(kind === 'characters' ? 'world' : 'characters');
     };
     $$('[data-unsplit]', body).forEach(b => b.onclick = () => unsplit(b.dataset.unsplit));
-    $$('.ir-li', body).forEach(b => b.onclick = async () => { const to = list[+b.dataset.i]; if (!(await commitPick())) return; wantId = to && to.n.id; stepDocs(kind); });
+    $$('.ir-li', body).forEach(b => b.onclick = async () => { const to = list[+b.dataset.i]; if (to === it) return; if (!(await commitPick())) return; wantId = to && to.n.id; stepDocs(kind); });
     const nav = async d => { if (!(await commitPick())) return; const to = list[Math.max(0, Math.min(list.length - 1, sel + d))]; wantId = to && to.n.id; if (d > 0 && it && !undecidedList(it.n.id)) markDone(it.n.id); sel = Math.max(0, Math.min(list.length - 1, sel + d)); stepDocs(kind); };
     const pv = $('[data-prev]', body); if (pv) pv.onclick = () => nav(-1);
     // on the last document it goes on to the next step (beta, 20 Oct: it was greyed out there, and looked stuck)
@@ -547,7 +555,8 @@ window.UnwipImportRoom = (function () {
       const k = b.dataset.to;
       if (k === 'trash') { const t = U.findNode('root-trash'); if (t && where(it.n.id) !== 'trash') { const f = U.findNode(it.n.id); f.list.splice(f.index, 1); t.node.children.push(f.node); U.scheduleMeta(); U.renderBinder(); } }
       else if (where(it.n.id) !== k) moveToRoot(it.n.id, k);
-      markPlaced(it.n.id); if (!undecidedList(it.n.id)) markDone(it.n.id); rememberChoice(it.n.id); again();
+      if (byUnwip(it.n.id)) { const st = S.project.importSort; delete st.pick[it.n.id]; delete (st.split || {})[it.n.id]; st.done = (st.done || []).filter(x => x !== it.n.id); }   // re-picked for where it is now
+      markPlaced(it.n.id); if (!undecidedList(it.n.id) && pickOf(it.n.id) !== null) markDone(it.n.id); rememberChoice(it.n.id); again();
     });
     const sendTo = (id, k) => {
       if (k === 'trash') { const t = U.findNode('root-trash'), f = U.findNode(id); if (t && f && U.rootOf(id).kind !== 'trash') { f.list.splice(f.index, 1); t.node.children.push(f.node); } }
@@ -561,7 +570,10 @@ window.UnwipImportRoom = (function () {
       window.UnwipSheets.convert.last = [];
       await window.UnwipSheets.convert(lists); cache = {};
       const st = S.project.importSort; for (const r of window.UnwipSheets.convert.last || []) { st.made = (st.made || []).concat([{ ...r, title: titles[r.id] || '' }]); r.pages.forEach(markDone); }
-      for (const id of lists) if (!U.findNode(id) || !isList(id)) { decide(id, 'pages'); markDone(id); }
+      // only the lists really made into pages are ticked off (Cancel in the review window used to tick them all: the cache
+      // was just cleared, so they no longer looked like lists)
+      for (const r of window.UnwipSheets.convert.last || []) { decide(r.id, 'pages'); markDone(r.id); }
+      return (window.UnwipSheets.convert.last || []).length;
     };
     const gb = $('[data-guess]', body); if (gb) gb.onclick = () => { sendTo(it.n.id, g.kind); rememberChoice(it.n.id); again(); };
     const ua = $('[data-useall]', body); if (ua) ua.onclick = async () => { for (const x of guessable) sendTo(x.n.id, G[x.n.id].kind); U.scheduleMeta(); U.renderBinder(); U.toast(`${pl(guessable.length, 'document')} went where Unwip guessed. Anything can still be moved.`); await splitLists(guessable.map(x => x.n.id)); again(); };
@@ -581,7 +593,7 @@ window.UnwipImportRoom = (function () {
     $$('[data-make]', body).forEach(b => b.onclick = async () => { await makePerson(b.dataset.make); U.toast(`A page for <b>${esc(b.dataset.make)}</b> is in Characters.`); again(); });
     $$('[data-not]', body).forEach(b => b.onclick = () => { const st = S.project.importSort; st.notNames = [...new Set([...(st.notNames || []), b.dataset.not])]; U.scheduleMeta(); again(); });
     // moving on to the next step with documents here not looked at yet: a gentle reminder first
-    const next = $('.ir-next', foot), left = list.filter(x => !isDone(x.n.id));
+    const next = $('.ir-next', foot), left = list.filter(x => !isDone(x.n.id) && pickOf(x.n.id) !== 'pages');
     if (next && left.length && it) next.onclick = () => {
       if (room.querySelector('.ir-remind')) return go(kind === 'characters' ? 'world' : 'check');
       const box = document.createElement('div'); box.className = 'ir-remind';
@@ -591,7 +603,10 @@ window.UnwipImportRoom = (function () {
       $('[data-look]', box).onclick = () => { sel = list.indexOf(left[0]); stepDocs(kind); };
       $('[data-on]', box).onclick = () => go(kind === 'characters' ? 'world' : 'check');
     };
-    for (const b of $$('.ir-prev, .ir-next, .ir-later', foot)) { const f = b.onclick; if (f) b.onclick = async e => { if (await commitPick()) f.call(b, e); }; }
+    // leaving the step: this document's pick first, then every other list picked for pages, in one review window
+    const commitAll = async () => { if (!(await commitPick())) return false; await splitLists(list.filter(x => x !== it && U.findNode(x.n.id) && pickOf(x.n.id) === 'pages').map(x => x.n.id)); return true; };
+    for (const b of $$('.ir-prev, .ir-next', foot)) {   // (Sort the rest later keeps the picks for next time)
+      const f = b.onclick; if (f) b.onclick = async e => { if (await commitAll()) f.call(b, e); }; }
     restoreScroll(body);
   }
   function previewHTML(h) {

@@ -783,6 +783,15 @@
         if (n.type === 'folder') items.push({ label: 'Merge folder into one document…', action: () => mergeFolder(n.id) }); }
       if (n.type === 'doc' && level() >= 1) items.push({ label: 'Status', disabled: true }, ...statusOptions().map(([v, l]) => ({ label: (n.status || '') === v ? `✓ ${l}` : `    ${l}`, action: () => { n.status = v; scheduleMeta(); renderBinder(); refreshPlanView(); } })), { label: '    Edit status labels…', action: editStatuses });
       items.push({ sep: true });
+      // in the Trash: Put back goes to where it was deleted from (beta, 20 Oct: Move out of folder was greyed out there,
+      // and the only way out was finding a folder in Move to…)
+      if (root.kind === 'trash' && f.parent && f.parent.root) {
+        const from = n.trashedFrom && n.trashedFrom.parent && findNode(n.trashedFrom.parent), ok = from && rootOf(from.node.id) && rootOf(from.node.id).kind !== 'trash';
+        items.push({ label: ok ? `Put back in “${from.node.title}”` : 'Put back…', action: () => {
+          if (!ok) return moveToDialog(n.id);
+          moveNodeTo(n.id, from.node.id, n.trashedFrom.index); toast(`“${esc(n.title)}” is back in ${esc(from.node.title)}.`);
+        } });
+      }
       items.push({ label: 'Move to…', action: () => moveToDialog(n.id) });
       items.push({ label: 'Move up', hint: 'Alt+↑', disabled: f.index === 0, action: () => moveBy(n.id, -1) });
       items.push({ label: 'Move down', hint: 'Alt+↓', disabled: f.index === f.list.length - 1, action: () => moveBy(n.id, 1) });
@@ -1234,6 +1243,7 @@
 
   async function moveToTrash(id) {
     const f = findNode(id); if (!f || f.node.root) return;
+    f.node.trashedFrom = { parent: f.parent ? f.parent.id : null, index: f.index };   // for Put back
     f.list.splice(f.index, 1);
     findNode('root-trash').node.children.push(f.node);
     if (id === S.docId || isInside(S.docId, f.node)) { await flushSave(); S.docId = null; showEmpty(true); }
@@ -1278,6 +1288,7 @@
     const src = findNode(id); if (!src || src.node.root) return;
     const parent = findNode(parentId).node;
     if (parent.id === id || isInside(parentId, src.node)) return;
+    if (parent.kind !== 'trash' && (rootOf(parentId) || {}).kind !== 'trash') delete src.node.trashedFrom;
     src.list.splice(src.index, 1);
     if (index == null || index > parent.children.length) index = parent.children.length;
     parent.children.splice(index, 0, src.node);
@@ -1305,14 +1316,15 @@
     if (above.type !== 'folder') return;
     moveNodeTo(id, above.id, null);
   }
-  async function moveToDialog(id) {
-    const node = findNode(id).node;
+  // (many: several ids moved together, in their order, from the binder's Edit mode)
+  async function moveToDialog(id, many) {
+    const ids = many && many.length ? many : [id], node = findNode(ids[0]).node, moving = ids.map(x => findNode(x)).filter(Boolean).map(f => f.node);
     const body = document.createElement('div');
-    body.innerHTML = '<p>Choose where to put it. It goes to the end of that folder.</p><div class="dest-list"></div>';
+    body.innerHTML = `<p>Choose where to put ${ids.length > 1 ? 'them' : 'it'}. ${ids.length > 1 ? 'They go' : 'It goes'} to the end of that folder.</p><div class="dest-list"></div>`;
     const list = $('.dest-list', body);
     let chosen = null;
     const add = (n, depth) => {
-      if (n.type !== 'folder' || n.id === id || isInside(n.id, node)) return;
+      if (n.type !== 'folder' || moving.some(m => n.id === m.id || isInside(n.id, m))) return;
       const b = document.createElement('button');
       b.className = 'dest' + (n.root ? ' root' : '');
       b.style.paddingLeft = (12 + depth * 18) + 'px';
@@ -1324,8 +1336,9 @@
       for (const c of n.children || []) add(c, depth + 1);
     };
     for (const r of S.project.binder) add(r, 0);
-    const ok = await modal({ title: `Move "${node.title}"`, body, buttons: [{ label: 'Cancel', value: false, kind: 'ghost' }, { label: 'Move here', value: true, kind: 'primary' }] });
-    if (ok && chosen) moveNodeTo(id, chosen, null);
+    const ok = await modal({ title: ids.length > 1 ? `Move ${ids.length} things` : `Move "${node.title}"`, body, buttons: [{ label: 'Cancel', value: false, kind: 'ghost' }, { label: 'Move here', value: true, kind: 'primary' }] });
+    if (ok && chosen) { for (const x of ids) { if (findNode(chosen).node.kind === 'trash') await moveToTrash(x); else moveNodeTo(x, chosen, null); } return true; }
+    return false;
   }
   tree.addEventListener('mousedown', e => {
     S.binderActive = true; S.focusTarget = null; S.ckSelected = null;
@@ -4754,7 +4767,7 @@
 
   // test hooks (used by the automated checks, harmless otherwise)
   window.__folio = { S, openProject, openDoc, copyDocForDocs, compileManuscript, flushSave, addNode, setWriter, insertCleanHTML };
-  window.__unwip = { navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
+  window.__unwip = { moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
     editStatuses: () => editStatuses(), folderWords, iconHTML, newTitleFor, statusColor, statusName, statusOptions,   // for corkboard.js
     newEventFrom: seed => editEvent(null, seed), showMenu: (x, y, items) => showMenu(x, y, items), deleteBook: p => deleteBook(p), pageTemplate: root => sheetFor(root) ? sheetTemplate(root) : '<p><br></p>',
     get saveFailing() { return !!troubleRetry; }, pasteContent,

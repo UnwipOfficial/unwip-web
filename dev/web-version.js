@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.45.9";
-window.UNWIP_LATEST_NOTES = "- Import room: for a list, \"One page per person\" and \"Keep it as one document\" are now a switch. Picking one only picks it, and the preview below shows what you'll get: each page, or the document as one page. Switch as often as you like. The pages are made when you move on.\n- Import room: every page made from a list says which list it came from, with \"Change back to one document\" to undo it.";
+window.UNWIP_VERSION = "0.46.0";
+window.UNWIP_LATEST_NOTES = "- iPhone and iPad: \u270e Edit at the bottom of the binder. Drag rows by \u2261 into folders, between rows, or out of a folder by sliding left. Tick several to move them together, with Move to\u2026, Out of folder or Trash. Ticking a folder takes everything in it along.\n- In the Trash, holding something offers Put back, which returns it to where it was deleted from.\n- iPhone and iPad: holding a row or a menu no longer selects its text with Copy / Look Up / Translate.\n- Import room: every list now comes with Unwip's pick (one page each in Characters, Places and Items, one document elsewhere), so nothing comes back for a second pass. Switch any time. The pages are made when you move on to the next step, all in one review window.\n- Import room: every document shows a preview of how it will look, not just lists, and the guess line reads cleanly on a phone.\n- Import room: tapping the document you're already on no longer makes its pages, and Cancel in the review window no longer ticks the lists off.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;

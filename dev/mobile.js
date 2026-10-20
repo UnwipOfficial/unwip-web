@@ -279,7 +279,7 @@ window.UnwipMobile = (function () {
   function showPage() { mark('m-view-binder', false); mark('m-view-page', true); refreshHead(); }
   // tapping a document in the chapter list opens its page; folders open and close
   document.addEventListener('click', e => {
-    if (!phone.matches) return;
+    if (!phone.matches || (window.UnwipBinderEdit && window.UnwipBinderEdit.on)) return;   // Edit: a tap ticks, it doesn't open
     const row = e.target.closest('#binder-tree .tree-row');
     if (!row || e.target.closest('.tr-chev, .tr-add, input.rename')) return;
     if (S.longPress && Date.now() - S.longPress < 1500) return;   // the end of a press-and-hold opens the menu, not the page
