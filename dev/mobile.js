@@ -187,16 +187,60 @@ window.UnwipMobile = (function () {
   // keyboard is open, lift the row above that bar.
   const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const HW_BAR = 66;
+  let lift = 0;   // how far the row sits above the bottom of the screen (keyboard + room for the iPhone's bar)
   function placeBar() {
     if (!vv) return;
-    let kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    let kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop, window.__kbTest || 0);   // (__kbTest: a pretend keyboard for the checks)
     const hw = IOS && kb < 30 && document.activeElement === editor && root.classList.contains('m-editing');
     root.classList.toggle('m-hwkb', hw);
-    if (hw) kb += HW_BAR;
+    // Since iOS 26 the ^ v ✓ bar can also float over the page above the on-screen keyboard, without the page being told
+    // (beta, 22 Oct: it covered the row while typing). On an iPhone or iPad the row always leaves room for it while you
+    // type, with either keyboard; when iOS doesn't show the bar, that's a small gap above the keyboard.
+    if (IOS && document.activeElement === editor && root.classList.contains('m-editing')) kb += HW_BAR;
+    lift = kb;
     fbar.style.transform = `translateY(${-kb}px)`;
     root.style.setProperty('--m-kb', kb + 'px');
   }
   if (vv) { vv.addEventListener('resize', placeBar); vv.addEventListener('scroll', placeBar); }
+  // coming back to the app (or the cursor coming back to the page) doesn't always tell the page the keyboard is back
+  // (beta, 22 Oct): place the row again then, and once more after the keyboard has finished sliding in
+  const replace = () => { placeBar(); setTimeout(placeBar, 350); setTimeout(placeBar, 800); };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) replace(); });
+  window.addEventListener('pageshow', replace); window.addEventListener('focus', replace);
+  editor.addEventListener('focus', replace);
+  // ---- the page follows the cursor while you type (beta, 22 Oct): the iPhone keyboard doesn't shrink the page, and the
+  // chapter scrolls in its own box, so iOS never scrolled it: the words ran on behind the keyboard and the row above
+  // it. After each change, if the cursor is below what you can see (above the keyboard and the formatting row) or above
+  // the top bar, the chapter scrolls to keep it in view, with a little room to spare.
+  const wrapEl = document.getElementById('editor-wrap');
+  function caretBox() {
+    const s = getSelection(); if (!s.rangeCount || !editor.contains(s.anchorNode)) return null;
+    const r = s.getRangeAt(0).cloneRange(); r.collapse(false);
+    const rs = r.getClientRects(); let b = rs.length ? rs[rs.length - 1] : null;
+    if (!b || !b.height) { const n = r.startContainer.nodeType === 1 ? r.startContainer : r.startContainer.parentElement; b = n && n.getBoundingClientRect(); }
+    return b && b.height ? b : null;
+  }
+  let followRaf = 0;
+  function followCaret() {
+    cancelAnimationFrame(followRaf);
+    followRaf = requestAnimationFrame(() => {
+      if (!phone.matches || document.activeElement !== editor || !wrapEl) return;
+      if (U.typewriterActive && U.typewriterActive()) return;   // typewriter scrolling keeps its own place
+      const b = caretBox(); if (!b) return;
+      placeBar();
+      const kb = Math.max(lift, vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0, window.__kbTest || 0);
+      const bar = root.classList.contains('m-editing') && fbar.offsetHeight ? fbar.offsetHeight : 0;
+      // room below the last line as tall as the keyboard and the row, or there's nothing to scroll into (a phone's page
+      // has hardly any space under its last line)
+      const pad = kb ? (kb + bar + 60) + 'px' : ''; if (wrapEl.style.paddingBottom !== pad) wrapEl.style.paddingBottom = pad;
+      const bottom = window.innerHeight - kb - bar - 16, head = $('.m-phead'), top = Math.max(wrapEl.getBoundingClientRect().top, head ? head.getBoundingClientRect().bottom : 0) + 8;
+      if (b.bottom > bottom) wrapEl.scrollTop += b.bottom - bottom + 24;
+      else if (b.top < top) wrapEl.scrollTop -= top - b.top + 24;
+    });
+  }
+  editor.addEventListener('input', followCaret);
+  editor.addEventListener('keyup', e => { if (/^(Arrow|Enter|Backspace|Delete)/.test(e.key)) followCaret(); });
+  if (vv) vv.addEventListener('resize', followCaret);
   // Dialogs and text boxes: the iPhone keyboard doesn't shrink the page, so a dialog centred on the whole screen ends
   // up half behind the keyboard and its ^ v ✓ bar. Dialogs are fitted to the part you can still see, and the box
   // you tap into is brought up into view.

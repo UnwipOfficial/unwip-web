@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.46.0";
-window.UNWIP_LATEST_NOTES = "- iPhone and iPad: \u270e Edit at the bottom of the binder. Drag rows by \u2261 into folders, between rows, or out of a folder by sliding left. Tick several to move them together, with Move to\u2026, Out of folder or Trash. Ticking a folder takes everything in it along.\n- In the Trash, holding something offers Put back, which returns it to where it was deleted from.\n- iPhone and iPad: holding a row or a menu no longer selects its text with Copy / Look Up / Translate.\n- Import room: every list now comes with Unwip's pick (one page each in Characters, Places and Items, one document elsewhere), so nothing comes back for a second pass. Switch any time. The pages are made when you move on to the next step, all in one review window.\n- Import room: every document shows a preview of how it will look, not just lists, and the guess line reads cleanly on a phone.\n- Import room: tapping the document you're already on no longer makes its pages, and Cancel in the review window no longer ticks the lists off.";
+window.UNWIP_VERSION = "0.46.1";
+window.UNWIP_LATEST_NOTES = "- iPhone: the page now follows as you type. Before, the words could run on behind the keyboard while the page stayed put.\n- iPhone and iPad: the formatting row above the keyboard no longer hides under the iPhone's own ^ \u02c5 \u2713 bar, including after changing something earlier in a chapter, after Revise, and after switching out of the app and back.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;

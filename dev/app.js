@@ -4767,7 +4767,7 @@
 
   // test hooks (used by the automated checks, harmless otherwise)
   window.__folio = { S, openProject, openDoc, copyDocForDocs, compileManuscript, flushSave, addNode, setWriter, insertCleanHTML };
-  window.__unwip = { moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
+  window.__unwip = { typewriterActive, moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
     editStatuses: () => editStatuses(), folderWords, iconHTML, newTitleFor, statusColor, statusName, statusOptions,   // for corkboard.js
     newEventFrom: seed => editEvent(null, seed), showMenu: (x, y, items) => showMenu(x, y, items), deleteBook: p => deleteBook(p), pageTemplate: root => sheetFor(root) ? sheetTemplate(root) : '<p><br></p>',
     get saveFailing() { return !!troubleRetry; }, pasteContent,
