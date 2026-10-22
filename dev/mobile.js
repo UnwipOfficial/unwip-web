@@ -106,6 +106,7 @@ window.UnwipMobile = (function () {
   // the formatting row that sits on top of the keyboard
   const fbar = document.createElement('div'); fbar.className = 'm-fbar';
   fbar.innerHTML = `
+    <button data-x="page" class="m-fwide m-fpage" hidden aria-label="Make a page from the selected words">＋ Page</button>
     <button data-c="bold" aria-label="Bold"><b>B</b></button><button data-c="italic" aria-label="Italic"><i>I</i></button>
     <button data-c="underline" aria-label="Underline"><u>U</u></button><button data-c="strikeThrough" aria-label="Strikethrough"><s>S</s></button>
     <span class="m-fsep"></span>
@@ -113,7 +114,10 @@ window.UnwipMobile = (function () {
     <button data-x="font" class="m-fwide m-faa" aria-label="Font and size">Aa</button>
     <span class="m-fsep"></span>
     <button data-x="scene" aria-label="Scene break">${IC.scene}</button><button data-x="comment" aria-label="Add a comment">${IC.note}</button><button data-x="hide" aria-label="Hide keyboard">${IC.keyboard}</button>`;
-  document.body.appendChild(fbar);
+  // the row sits just under the top bar while you type (beta, 22 Oct): iOS sometimes counts its own ^ v ✓ bar as part
+  // of the keyboard and sometimes not, and never says which, so a row above the keyboard was either covered or left
+  // floating. Up here it takes its own space: the page (title included) starts below it.
+  phead.after(fbar);
   // buttons on the keyboard row must not take the cursor away from the page (that would close the keyboard)
   const act = b => {
     if (b.dataset.c) cmd(b.dataset.c);
@@ -122,6 +126,7 @@ window.UnwipMobile = (function () {
     else if (b.dataset.x === 'comment') click('#btn-comment');
     else if (b.dataset.x === 'hide') $('#m-done').click();
     else if (b.dataset.x === 'font') toggleFontSheet();
+    else if (b.dataset.x === 'page' && window.UnwipPhonePage) window.UnwipPhonePage.open();
   };
   // Aa: font and size for the selected words (or what you type next), in a sheet above the keyboard row
   const fsheet = document.createElement('div'); fsheet.className = 'm-fsheet'; fsheet.hidden = true;
@@ -173,6 +178,13 @@ window.UnwipMobile = (function () {
   const fadeEdges = () => { const max = fbar.scrollWidth - fbar.clientWidth; fbar.classList.toggle('more-r', fbar.scrollLeft < max - 4); fbar.classList.toggle('more-l', fbar.scrollLeft > 4); };
   fbar.addEventListener('scroll', fadeEdges, { passive: true }); addEventListener('resize', fadeEdges); setTimeout(fadeEdges, 300);
   fbar.addEventListener('mousedown', e => { e.preventDefault(); const b = e.target.closest('button'); if (b) act(b); });
+  // ＋ Page: only while words in the chapter are selected (phonepage.js), first in the row so it's in view
+  function pageBtn() {
+    const pb = $('.m-fpage', fbar); if (!pb) return;
+    const s = getSelection(), on = !!(s.rangeCount && !s.isCollapsed && editor.contains(s.anchorNode) && s.toString().trim());
+    if (pb.hidden === on) { pb.hidden = !on; if (on) fbar.scrollLeft = 0; }
+  }
+  document.addEventListener('selectionchange', pageBtn);
   function fmtState() {
     for (const b of $$('[data-c]', fbar)) { let on = false; try { on = document.queryCommandState(b.dataset.c); } catch {} b.classList.toggle('on', on); }
     const blk = U.currentBlock && U.currentBlock(getSelection().anchorNode);
@@ -187,20 +199,20 @@ window.UnwipMobile = (function () {
   // keyboard is open, lift the row above that bar.
   const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const HW_BAR = 66;
-  let lift = 0;   // how far the row sits above the bottom of the screen (keyboard + room for the iPhone's bar)
+  let lift = 0, startEditRef = null;   // (startEditing is set up further down)   // how far the row sits above the bottom of the screen (keyboard + room for the iPhone's bar)
   function placeBar() {
     if (!vv) return;
-    let kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop, window.__kbTest || 0);   // (__kbTest: a pretend keyboard for the checks)
-    const hw = IOS && kb < 30 && document.activeElement === editor && root.classList.contains('m-editing');
-    root.classList.toggle('m-hwkb', hw);
-    // Since iOS 26 the ^ v ✓ bar can also float over the page above the on-screen keyboard, without the page being told
-    // (beta, 22 Oct: it covered the row while typing). On an iPhone or iPad the row always leaves room for it while you
-    // type, with either keyboard; when iOS doesn't show the bar, that's a small gap above the keyboard.
-    if (IOS && document.activeElement === editor && root.classList.contains('m-editing')) kb += HW_BAR;
-    lift = kb;
-    fbar.style.transform = `translateY(${-kb}px)`;
-    root.style.setProperty('--m-kb', kb + 'px');
+    const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop, window.__kbTest || 0);   // (__kbTest: a pretend keyboard for the checks)
+    const typing = document.activeElement === editor && root.classList.contains('m-editing');
+    root.classList.toggle('m-hwkb', IOS && kb < 30 && typing);
+    // the words keep clear of iOS's floating ^ v ✓ bar too (since iOS 26 it can sit over the page above the keyboard)
+    lift = kb + (IOS && typing ? HW_BAR : 0);
+    root.style.setProperty('--m-kb', lift + 'px');
+    if (root.classList.contains('m-editing')) root.style.setProperty('--m-row-bottom', Math.round(fbar.getBoundingClientRect().bottom) + 'px');
+    // the keyboard is up on the chapter but typing mode didn't start (it came back after switching apps, with no tap)
+    if (phone.matches && kb > 120 && document.activeElement === editor && !root.classList.contains('m-editing') && startEditRef) startEditRef();
   }
+
   if (vv) { vv.addEventListener('resize', placeBar); vv.addEventListener('scroll', placeBar); }
   // coming back to the app (or the cursor coming back to the page) doesn't always tell the page the keyboard is back
   // (beta, 22 Oct): place the row again then, and once more after the keyboard has finished sliding in
@@ -229,11 +241,11 @@ window.UnwipMobile = (function () {
       const b = caretBox(); if (!b) return;
       placeBar();
       const kb = Math.max(lift, vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0, window.__kbTest || 0);
-      const bar = root.classList.contains('m-editing') && fbar.offsetHeight ? fbar.offsetHeight : 0;
-      // room below the last line as tall as the keyboard and the row, or there's nothing to scroll into (a phone's page
-      // has hardly any space under its last line)
-      const pad = kb ? (kb + bar + 60) + 'px' : ''; if (wrapEl.style.paddingBottom !== pad) wrapEl.style.paddingBottom = pad;
-      const bottom = window.innerHeight - kb - bar - 16, head = $('.m-phead'), top = Math.max(wrapEl.getBoundingClientRect().top, head ? head.getBoundingClientRect().bottom : 0) + 8;
+      // room below the last line as tall as the keyboard, or there's nothing to scroll into (a phone's page has hardly
+      // any space under its last line). The row is at the top now, under the top bar.
+      const pad = kb ? (kb + 60) + 'px' : ''; if (wrapEl.style.paddingBottom !== pad) wrapEl.style.paddingBottom = pad;
+      const head = $('.m-phead'), rowB = root.classList.contains('m-editing') && fbar.offsetHeight ? fbar.getBoundingClientRect().bottom : 0;
+      const bottom = window.innerHeight - kb - 16, top = Math.max(wrapEl.getBoundingClientRect().top, head ? head.getBoundingClientRect().bottom : 0, rowB) + 8;
       if (b.bottom > bottom) wrapEl.scrollTop += b.bottom - bottom + 24;
       else if (b.top < top) wrapEl.scrollTop -= top - b.top + 24;
     });
@@ -281,6 +293,7 @@ window.UnwipMobile = (function () {
   let tappedAnyAt = 0;
   document.addEventListener('pointerdown', e => { tappedAnyAt = Date.now(); tappedAt = editor.contains(e.target) ? Date.now() : 0; }, true);
   const startEditing = () => { if (!phone.matches || root.classList.contains('m-editing')) return; mark('m-editing', true); placeBar(); settleBar(); fmtState(); refreshHead(); setTimeout(fadeEdges, 50); };
+  startEditRef = startEditing;
   editor.addEventListener('focus', () => { if (Date.now() - tappedAt < 1500) startEditing(); });
   editor.addEventListener('pointerup', () => { if (document.activeElement === editor) startEditing(); });
   editor.addEventListener('keydown', startEditing);

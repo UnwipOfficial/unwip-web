@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.46.1";
-window.UNWIP_LATEST_NOTES = "- iPhone: the page now follows as you type. Before, the words could run on behind the keyboard while the page stayed put.\n- iPhone and iPad: the formatting row above the keyboard no longer hides under the iPhone's own ^ \u02c5 \u2713 bar, including after changing something earlier in a chapter, after Revise, and after switching out of the app and back.";
+window.UNWIP_VERSION = "0.46.2";
+window.UNWIP_LATEST_NOTES = "- iPhone: while you type, the formatting row now sits just under the top bar instead of above the keyboard, so the iPhone's own ^ \u02c5 \u2713 bar can never cover it or leave it floating. The chapter title is still right there below it, and the page keeps following your cursor.\n- iPhone: typing mode now switches on whenever the keyboard is up on the chapter, including after switching back from another app.\n- iPhone: \uff0b Page. Select a name while writing and tap \uff0b Page in the formatting row to make a character, place or item page called that, or add the words to a page you already have.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;

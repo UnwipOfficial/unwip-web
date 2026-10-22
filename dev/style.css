@@ -4082,3 +4082,33 @@ html.bedit .tree-row .tr-count, html.bedit .tree-row .tr-words { display: none; 
 #be-line::before { content: ''; position: absolute; left: -6px; top: -4px; width: 11px; height: 11px; border-radius: 50%; background: var(--accent); }
 #be-ghost { z-index: 960; pointer-events: none; background: var(--panel); border: 1px solid var(--accent); border-radius: 10px; box-shadow: 0 12px 30px rgba(0,0,0,.35); opacity: .95; display: flex; align-items: center; gap: 6px; box-sizing: border-box; }
 #be-ghost .be-count { background: var(--accent); color: var(--paper); border-radius: 99px; font-size: 12px; font-weight: 700; padding: 1px 8px; margin-left: 6px; }
+
+/* iPhone: the formatting row sits just under the top bar while you type (mobile.js), taking its own space so the page
+   and its title start below it; the font panel opens under it */
+@media (max-width: 720px) {
+  .m-fbar { position: relative; bottom: auto; transform: none !important; border-top: 0; border-bottom: 1px solid var(--line); flex-shrink: 0; z-index: 29; }
+  .m-fsheet { top: var(--m-row-bottom, 110px); bottom: auto; border-top: 0; border-bottom: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+}
+
+/* A page from a word, on a phone (phonepage.js): ＋ Page in the formatting row, and its panel from the bottom */
+.m-fbar button.m-fpage { background: var(--accent); border-color: var(--accent); color: var(--paper); font-family: var(--ui); font-weight: 700; font-size: 14px; padding: 0 10px; }
+.m-fbar button.m-fpage[hidden] { display: none; }
+.pp-back { position: fixed; inset: 0; z-index: 940; background: rgba(10,10,14,.45); display: flex; align-items: flex-end; }
+.pp-sheet { width: 100%; max-height: 88vh; overflow-y: auto; box-sizing: border-box; background: var(--panel); color: var(--text); border-radius: 18px 18px 0 0; padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 10px; box-shadow: 0 -12px 30px rgba(0,0,0,.3); }
+.pp-cap { font-size: 12px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+.pp-field { font: inherit; font-size: 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--text); width: 100%; box-sizing: border-box; }
+.pp-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.pp-kinds .btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px; min-height: 64px; font-size: 15px; }
+.pp-kinds .btn em { font-style: normal; font-size: 20px; }
+.pp-kinds .btn span { overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap; }
+.pp-msg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 10%, var(--paper)); font-size: 14px; }
+.pp-msg[hidden] { display: none; }
+.pp-msg > span { flex: 1 1 100%; }
+.pp-list { display: flex; flex-direction: column; }
+.pp-li { font: inherit; font-size: 15px; display: flex; align-items: center; gap: 10px; text-align: left; padding: 11px 4px; min-height: 44px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--text); }
+.pp-li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-li small { color: var(--muted); font-size: 13px; flex: none; }
+.pp-none { color: var(--muted); font-size: 14px; margin: 4px 0; }
+.pp-cancel { align-self: stretch; }
+/* while typing on a phone the ← Back chip stays out of the way (it floated over the words under the row) */
+@media (max-width: 720px) { html.m-editing .nav-chips { display: none !important; } html.m-editing .nav-chips + .page { margin-top: revert-layer; } }
