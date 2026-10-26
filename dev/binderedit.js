@@ -49,7 +49,7 @@ window.UnwipBinderEdit = (function () {
   function bars() {
     const top = $('#be-top'), bar = $('#be-bar'); if (!top || !bar) return;
     const T = tops(), canOut = T.some(n => { const f = U.findNode(n.id); return f && f.parent && !f.parent.root; });
-    top.innerHTML = `<b>${T.length ? `${T.length} ticked` : 'Edit the binder'}</b><span class="be-hint">${T.length ? '' : 'Drag ≡, or tick several'}</span><button type="button" class="btn small primary" data-done>Done</button>`;
+    top.innerHTML = `<b>${T.length ? `${T.length} ticked` : 'Edit the binder'}</b><span class="be-hint">${T.length ? '' : 'Tap a name to rename'}</span><button type="button" class="btn small primary" data-done>Done</button>`;
     bar.innerHTML = `<button type="button" class="btn small" data-be="move" ${T.length ? '' : 'disabled'}>Move to…</button><button type="button" class="btn small" data-be="out" ${canOut ? '' : 'disabled'}>Out of folder</button><span class="bf-sp"></span><button type="button" class="btn small be-trash" data-be="trash" ${T.length ? '' : 'disabled'}>Trash</button>`;
     $('[data-done]', top).onclick = stop;
     $$('[data-be]', bar).forEach(b => b.onclick = () => act(b.dataset.be));
@@ -197,10 +197,15 @@ window.UnwipBinderEdit = (function () {
     // while editing, a tap ticks (the arrow still opens and closes a folder) and holding doesn't open the menu
     t.addEventListener('click', e => {
       if (!on) return;
+      if (e.target.closest('input')) return;   // typing a new name
       const row = e.target.closest('.tree-row[data-id]'); if (!row || e.target.closest('.tr-chev') || e.target.closest('.be-grip')) return;
       const f = U.findNode(row.dataset.id); if (!f) return;
       if (f.node.root) return;   // a section: the normal tap opens or closes it
-      e.preventDefault(); e.stopImmediatePropagation(); tick(f.node.id);
+      e.preventDefault(); e.stopImmediatePropagation();
+      // tapping the name renames it (beta, 26 Oct: on an iPhone a double tap opened it instead); the circle or the rest
+      // of the row ticks it
+      if (e.target.closest('.tr-title')) { U.startRename(row, f.node); return; }
+      tick(f.node.id);
     }, true);
     t.addEventListener('contextmenu', e => { if (on) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
     t.addEventListener('dragstart', e => { if (on) e.preventDefault(); }, true);

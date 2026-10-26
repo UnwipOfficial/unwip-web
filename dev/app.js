@@ -764,7 +764,7 @@
           toast(out ? `“${esc(n.title)}” is back in the book.` : `“${esc(n.title)}” stays here but is left out of the preview and exports. Right-click it again to put it back.`);
         } });
       }
-      items.push({ label: 'Rename', hint: 'Double-click', action: () => startRename($(`.tree-row[data-id="${n.id}"]`), n) });
+      items.push({ label: 'Rename', hint: matchMedia('(pointer: coarse)').matches ? '' : 'Double-click', action: () => startRename($(`.tree-row[data-id="${n.id}"]`), n) });
       if (n.type === 'doc') items.push({ label: 'Copy for Docs', action: () => copyDocForDocs(n.id) });
       if (n.type === 'doc' && window.UnwipRR) items.push({ label: 'Copy for Royal Road…', action: () => window.UnwipRR.open(n.id) });
       if (n.type === 'doc' && !n.map && window.UnwipSeries && ['characters', 'places', 'items'].concat(S.project.binder.filter(r => r.custom).map(r => r.kind)).includes(root.kind)) {
@@ -4767,7 +4767,7 @@
 
   // test hooks (used by the automated checks, harmless otherwise)
   window.__folio = { S, openProject, openDoc, copyDocForDocs, compileManuscript, flushSave, addNode, setWriter, insertCleanHTML };
-  window.__unwip = { typewriterActive, moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
+  window.__unwip = { startRename, typewriterActive, moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
     editStatuses: () => editStatuses(), folderWords, iconHTML, newTitleFor, statusColor, statusName, statusOptions,   // for corkboard.js
     newEventFrom: seed => editEvent(null, seed), showMenu: (x, y, items) => showMenu(x, y, items), deleteBook: p => deleteBook(p), pageTemplate: root => sheetFor(root) ? sheetTemplate(root) : '<p><br></p>',
     get saveFailing() { return !!troubleRetry; }, pasteContent,
