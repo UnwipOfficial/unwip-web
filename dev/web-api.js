@@ -243,11 +243,15 @@
   // hadn't caught up yet): that version is kept as a conflicted copy first, so neither device's writing is lost. The
   // PC app does the same (main.js guardedWrite).
   const seen = new Map();
+  // the parts of the book file a person would notice (the binder's names, notes and order, the Story Bible, timeline,
+  // continuity notes, links, character sheets); the rest is bookkeeping like the page last open, kept per device
+  const matters = t => { try { const j = JSON.parse(t); const w = l => (l || []).map(n => [n.id, n.type, n.title || '', n.synopsis || '', n.status || '', n.label ? n.label.n : '', n.icon || '', n.noBook ? 1 : 0, n.csheet || null, n.type === 'folder' ? w(n.children) : 0]); return JSON.stringify([j.title, w(j.binder), j.bible || null, j.timeline || null, j.continuity || null, j.links || null]); } catch { return null; } };
   async function guardedWrite(slug, p, data) {
     try {
       if (seen.has(p)) {
         const now = await FS.text(p);
-        if (now != null && now !== seen.get(p) && now !== data) {
+        const book = /\/project\.json$/.test(p), same = book && matters(now) !== null && (matters(now) === matters(seen.get(p)) || matters(now) === matters(data));
+        if (now != null && now !== seen.get(p) && now !== data && !same) {
           const m = /^(.*)(\.[^./]+)$/.exec(p), day = new Date().toLocaleDateString('en-CA');
           let c = `${m[1]} (another device's conflicted copy ${day})${m[2]}`, n = 2;
           while (await FS.exists(c)) c = `${m[1]} (another device's conflicted copy ${day} ${n++})${m[2]}`;

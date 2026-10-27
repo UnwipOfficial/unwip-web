@@ -120,7 +120,8 @@ window.UnwipMobile = (function () {
   phead.after(fbar);
   // buttons on the keyboard row must not take the cursor away from the page (that would close the keyboard)
   const act = b => {
-    if (b.dataset.c) cmd(b.dataset.c);
+    if (b.dataset.c && /^(bold|italic|underline|strikeThrough)$/.test(b.dataset.c) && U.fmtToggle) { try { document.execCommand('styleWithCSS', false, false); U.fmtToggle(b.dataset.c); } catch {} U.scheduleSave(); U.updateCountsSoon(); fmtState(); }
+    else if (b.dataset.c) cmd(b.dataset.c);
     else if (b.dataset.b) { const sel = $('#sel-block'); if (sel) { sel.value = b.dataset.b; sel.dispatchEvent(new Event('change', { bubbles: true })); } setTimeout(fmtState, 30); }
     else if (b.dataset.x === 'scene') click('#btn-scene');
     else if (b.dataset.x === 'comment') click('#btn-comment');
@@ -186,7 +187,7 @@ window.UnwipMobile = (function () {
   }
   document.addEventListener('selectionchange', pageBtn);
   function fmtState() {
-    for (const b of $$('[data-c]', fbar)) { let on = false; try { on = document.queryCommandState(b.dataset.c); } catch {} b.classList.toggle('on', on); }
+    for (const b of $$('[data-c]', fbar)) { let on = false; try { on = U.fmtShown ? U.fmtShown(b.dataset.c) : document.queryCommandState(b.dataset.c); } catch {} b.classList.toggle('on', on); }
     const blk = U.currentBlock && U.currentBlock(getSelection().anchorNode);
     const tag = blk ? blk.tagName.toLowerCase() : 'p';
     for (const b of $$('[data-b]', fbar)) b.classList.toggle('on', b.dataset.b === tag);

@@ -195,6 +195,9 @@ window.UnwipSync = (function () {
         // this device has binder changes still to save: keep the other device's binder as a conflicted copy before
         // that save goes ahead, so the compare window can offer both (the web version does this as it saves)
         if (api.keepIncoming && await api.keepIncoming(S.slug)) { setTimeout(checkConflicts, 900); return; }
+        // the web version: its save keeps the other binder as a copy if it really differs (web-api.js guardedWrite),
+        // and the compare window offers it then; a difference in bookkeeping only isn't worth a word
+        if (window.folio && window.folio.__fs) { setTimeout(checkConflicts, 1500); return; }
         U.toastAction('The binder was changed on another device.', 'Load those changes', load, 20000);
       }
       else load();
@@ -289,11 +292,42 @@ window.UnwipSync = (function () {
     $('#page').prepend(bar);
     bar.querySelectorAll('[data-q]').forEach(b => b.onclick = () => resolve(id, b.dataset.q));
   }
+  // would "Compare and bring in" change anything here? The same checks it makes, without changing anything
+  function bringsIn(other) {
+    const P = S.project, mine = new Map(); U.walkTree(P.binder, n => mine.set(n.id, n));
+    const arr = v => Array.isArray(v) ? v.filter(x => x && typeof x === 'object') : [];
+    const obj = v => v && typeof v === 'object';
+    let found = false;
+    U.walkTree(other.binder || [], t => {
+      if (found || !t || t.root) return;
+      const n = mine.get(t.id);
+      if (!n) { if (t.type === 'doc') found = true; return; }
+      if ((t.title || '') !== (n.title || '') || (t.synopsis || '') !== (n.synopsis || '')) { found = true; return; }
+      const tc = t.csheet; if (!obj(tc) || !obj(tc.slots)) return;
+      const nc = n.csheet; if (!obj(nc)) { found = true; return; }
+      const ns = obj(nc.slots) ? nc.slots : {};
+      for (const [sid, list] of Object.entries(tc.slots)) for (const te of arr(list)) { const me = arr(ns[sid]).find(x => x.ch === te.ch); if (!me || (me.name || '') !== (te.name || '')) found = true; }
+      if ((!nc.sys && typeof tc.sys === 'string') || (!nc.img && tc.img)) found = true;
+    });
+    if (found) return true;
+    const ob = obj(other.bible) ? other.bible : {}, mb = obj(P.bible) ? P.bible : {};
+    for (const k of ['facts', 'threads', 'glossary', 'links']) { const have = new Set(arr(mb[k]).map(x => x.id)); if (arr(ob[k]).some(x => x.id && !have.has(x.id))) return true; }
+    return false;
+  }
   async function checkConflicts() {
     let list = []; try { list = await api.conflicts(S.slug); } catch { return; }
     // chapters go into the Conflicted copies section; the binder (project file) still gets the compare window
     const docs = list.filter(c => c.kind === 'doc'); if (docs.length) await quarantine(docs);
     list = list.filter(c => c.kind !== 'doc');
+    // a binder copy with nothing in it that isn't here already (only bookkeeping differed, like the page last open, or
+    // it was already looked at): filed away in the backups without asking (beta, 27 Oct: it asked every time the book
+    // opened, about a binder with no differences)
+    const kept = [];
+    for (const c of list) {
+      let other = null; try { other = JSON.parse(await api.readConflict(S.slug, c.file)); } catch {}
+      if (other && !bringsIn(other)) { try { await api.archiveConflict(S.slug, c.file); } catch {} } else kept.push(c);
+    }
+    list = kept;
     if (!list.length) return;
     const titleOf = c => { if (c.kind !== 'doc') return 'The binder (book file)'; const id = c.original.replace(/\.html$/, ''); const f = U.findNode(id); return f ? f.node.title : 'A deleted document'; };
     const body = document.createElement('div');

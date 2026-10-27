@@ -317,10 +317,20 @@ window.UnwipLook = (function () {
       master = ac.createGain(); master.connect(comp); comp.connect(ac.destination);
       white = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate); const d = white.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     }
-    if (ac.state === 'suspended') ac.resume();
+    // an iPhone puts the sound on hold ("interrupted") while you're in another app, and sometimes leaves it there:
+    // wake it from any stop, and if it won't wake, start the sound afresh (beta, 27 Oct: gone after a visit to Discord)
+    if (ac.state !== 'running') {
+      const was = ac, p = (() => { try { return ac.resume(); } catch { return null; } })();
+      if (p && p.catch) p.catch(() => {});
+      if (!stuckSince) stuckSince = Date.now();
+      else if (Date.now() - stuckSince > 1500) { stuckSince = 0; try { was.close(); } catch {} ac = null; return ctx(); }
+    } else stuckSince = 0;
     master.gain.value = typing.volume * 1.4;
     return ac;
   }
+  let stuckSince = 0;
+  // back from another app: wake the sound before the first key, if it was in use
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && ac && ac.state !== 'running') { try { const p = ac.resume(); if (p && p.catch) p.catch(() => {}); } catch {} } });
   const jit = (v, k = 0.08) => v * (1 - k + Math.random() * k * 2);
   // filtered noise with an attack/decay envelope. filters: [[type, freq, Q], ...]
   function burst(t, { filters = [['bandpass', 3000, 1]], attack = 0.001, decay = 0.02, gain = 0.5, len } = {}) {
