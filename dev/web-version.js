@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.46.4";
-window.UNWIP_LATEST_NOTES = "- Dropbox: \"Two versions found\" no longer comes up for the binder when nothing in it is different, such as after just opening the book on another device. A leftover one with nothing new in it is put away in the backups instead of asking every time the book opens.\n- iPhone: typewriter and other key sounds come back after you switch to another app and back.\n- Bold, italic, underline and strikethrough buttons now show what your next letters will be straight away. On iPhone, iPad and Safari, U used to stay lit after you turned underline off.\n- Deleting a selection and typing in its place carries on in the formatting the deleted words started with, as in Scrivener.";
+window.UNWIP_VERSION = "0.46.5";
+window.UNWIP_LATEST_NOTES = "- \"This week\" on the goal rings and in Play now counts from the start of this week (Monday in Australia), not the last 7 days.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;

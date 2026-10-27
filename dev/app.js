@@ -3916,6 +3916,14 @@
     return sets.reduce((a, d) => a + Math.max(0, d[day] || 0), 0);
   }
   function dayKey(offset) { const d = new Date(); d.setDate(d.getDate() - offset); return d.toLocaleDateString('en-CA'); }
+  // how many days of this week so far, today included: the week starts on the day this device's region starts it
+  // (Monday in Australia and the UK, Sunday in the US). "This week" used to be the last 7 days (beta, 27 Oct)
+  function weekSoFar(now = new Date()) {
+    let first = 1;   // Monday
+    try { const L = new Intl.Locale(navigator.language || 'en-AU'), w = (L.getWeekInfo && L.getWeekInfo()) || L.weekInfo; if (w && w.firstDay >= 1 && w.firstDay <= 7) first = w.firstDay; } catch {}
+    const today = now.getDay() || 7;   // 1 Monday … 7 Sunday
+    return ((today - first + 7) % 7) + 1;
+  }
   function streaks(allDays) {
     const wrote = k => writtenOn(k, allDays) > 0;
     let cur = 0, i = wrote(dayKey(0)) ? 0 : 1;            // today not written yet doesn't break the streak
@@ -3982,7 +3990,7 @@
     const daily = S.settings.dailyGoal || 0;
     const total = manuscriptWords();
     const todayW = writtenOn(today());
-    let week = 0; for (let i = 0; i < 7; i++) week += writtenOn(dayKey(i));
+    let week = 0; for (let i = 0; i < weekSoFar(); i++) week += writtenOn(dayKey(i));
     const st = streaks();
     const sprints = S.project.stats.sprints || [];
     const bestWpm = sprints.reduce((a, x) => Math.max(a, x.wpm || 0), 0);
@@ -4021,7 +4029,7 @@
     const allDays = list.map(p => p.days || {});
     const daily = (S.settings || {}).dailyGoal || 0;
     const todayW = writtenOn(today(), allDays);
-    let week = 0; for (let i = 0; i < 7; i++) week += writtenOn(dayKey(i), allDays);
+    let week = 0; for (let i = 0; i < weekSoFar(); i++) week += writtenOn(dayKey(i), allDays);
     const st = streaks(allDays);
     const totalWords = list.reduce((a, p) => a + (p.words || 0), 0);
     const dash = $('#dash');
@@ -4838,7 +4846,7 @@
 
   // test hooks (used by the automated checks, harmless otherwise)
   window.__folio = { S, openProject, openDoc, copyDocForDocs, compileManuscript, flushSave, addNode, setWriter, insertCleanHTML };
-  window.__unwip = { fmtToggle, fmtShown, startRename, typewriterActive, moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
+  window.__unwip = { weekSoFar, fmtToggle, fmtShown, startRename, typewriterActive, moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
     editStatuses: () => editStatuses(), folderWords, iconHTML, newTitleFor, statusColor, statusName, statusOptions,   // for corkboard.js
     newEventFrom: seed => editEvent(null, seed), showMenu: (x, y, items) => showMenu(x, y, items), deleteBook: p => deleteBook(p), pageTemplate: root => sheetFor(root) ? sheetTemplate(root) : '<p><br></p>',
     get saveFailing() { return !!troubleRetry; }, pasteContent,

@@ -212,7 +212,7 @@ window.UnwipPlay = (function () {
     if (view === 'mimic') return mimicView(box);
     if (view === 'words' && window.UnwipWords) return window.UnwipWords.view(box, { back, wireHome, write: newPiece, mode: arg });
     const p = PROMPTS[(dayOfYear() + promptOffset) % PROMPTS.length];
-    const week = [...Array(7)].reduce((a, _, i) => a + (index.days[dayKey(i)] || 0), 0);
+    const week = [...Array(U.weekSoFar ? U.weekSoFar() : 7)].reduce((a, _, i) => a + (index.days[dayKey(i)] || 0), 0);   // this week so far
     const done = new Set(index.pieces.filter(x => x.kind === 'exercise' && x.passed).map(x => x.exId));
     const pieces = [...index.pieces].sort((a, b) => (b.updated || 0) - (a.updated || 0));
     box.innerHTML = `
