@@ -206,6 +206,8 @@ window.UnwipMobile = (function () {
     const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop, window.__kbTest || 0);   // (__kbTest: a pretend keyboard for the checks)
     const typing = document.activeElement === editor && root.classList.contains('m-editing');
     root.classList.toggle('m-hwkb', IOS && kb < 30 && typing);
+    // an iPad (the computer layout) with a keyboard attached: room for its floating bar at the bottom while typing
+    root.classList.toggle('m-padbar', IOS && !phone.matches && kb < 30 && document.activeElement === editor && !window.__noPadBar);
     // the words keep clear of iOS's floating ^ v ✓ bar too (since iOS 26 it can sit over the page above the keyboard)
     lift = kb + (IOS && typing ? HW_BAR : 0);
     root.style.setProperty('--m-kb', lift + 'px');
@@ -221,6 +223,7 @@ window.UnwipMobile = (function () {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) replace(); });
   window.addEventListener('pageshow', replace); window.addEventListener('focus', replace);
   editor.addEventListener('focus', replace);
+  editor.addEventListener('blur', () => setTimeout(placeBar, 60));
   // ---- the page follows the cursor while you type (beta, 22 Oct): the iPhone keyboard doesn't shrink the page, and the
   // chapter scrolls in its own box, so iOS never scrolled it: the words ran on behind the keyboard and the row above
   // it. After each change, if the cursor is below what you can see (above the keyboard and the formatting row) or above

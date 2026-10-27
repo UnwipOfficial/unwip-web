@@ -2052,8 +2052,8 @@
     const items = [...tb.children].filter(x => x !== more);
     const order = new Map(items.map((el, i) => [el, i]));
     // first to be tucked away → last
-    const PRIO = ['#btn-listen', '#btn-image', '#btn-footnote', '#btn-numbers', '#btn-bullets', '#btn-scene', '#btn-clear', '[data-cmd="strikeThrough"]', '[data-cmd="justifyFull"]', '[data-cmd="justifyRight"]',
-      '[data-cmd="justifyCenter"]', '[data-cmd="justifyLeft"]', '[data-cmd="underline"]', '#sel-size', '#btn-comment', '#sel-block', '#sel-font'];
+    const PRIO = ['#btn-listen', '#btn-cmdk', '#btn-image', '#btn-footnote', '#btn-numbers', '#btn-bullets', '#btn-scene', '#btn-clear', '[data-cmd="strikeThrough"]', '[data-cmd="justifyFull"]', '[data-cmd="justifyRight"]',
+      '[data-cmd="justifyCenter"]', '[data-cmd="justifyLeft"]', '#sel-size', '#btn-comment', '#sel-block', '#sel-font'];   // B, I and U always stay (beta, 27 Oct: U was gone on an iPad)
     [more, pop].forEach(el => el.addEventListener('mousedown', e => { if (!e.target.closest('select')) e.preventDefault(); }));
     more.onclick = () => {
       if (!pop.classList.contains('hidden')) { pop.classList.add('hidden'); return; }
