@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.46.6";
-window.UNWIP_LATEST_NOTES = "- Website: the three dots above the opening statement are back, filling in as the page opens.";
+window.UNWIP_VERSION = "0.46.7";
+window.UNWIP_LATEST_NOTES = "- Safety net: if a chapter is about to become much shorter, whether you saved it that way or a shorter copy came in from Dropbox or another device, Unwip first keeps the longer version in Snapshots (the \u27f2 button on the chapter).\n- PC: if the Dropbox app puts back an older version of a chapter that Unwip saved a few minutes earlier, Unwip now notices and puts your newest words straight back. This is what emptied a chapter today.\n- Restarting for an update saves everything first. On iPhone and iPad with Dropbox, it also finishes syncing before it restarts, and tells you if Dropbox can't be reached.\n- While you type without stopping, your writing is now saved at least every 3 seconds. It used to wait for a pause.\n- iPhone and iPad: if a Dropbox sync is cut off part-way, or the app closes before it syncs, the chapters not sent yet go up with the next sync. Before, they could be skipped until you changed them again.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
@@ -15,7 +15,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') addEventList
       const U = window.__unwip; if (!v || v === window.UNWIP_VERSION || v === offered || !U || !U.toastAction) return;
       offered = v;
       let notes = ''; try { const n = t.match(/UNWIP_LATEST_NOTES = ("(?:[^"\\]|\\.)*");/); if (n) notes = JSON.parse(n[1]); } catch (e) {}
-      const go = async () => { try { await U.flushSave(); if (U.saveMetaNow) await U.saveMetaNow(); } catch (e) {} if (U.saveFailing) { U.toast('Unwip can’t update yet: some writing isn’t saved (the bar at the top says why). It updates once saving works again.', 'warn', 9000); offered = ''; return; } location.reload(); };
+      const go = () => U.safeRestart ? U.safeRestart(() => location.reload()) : location.reload();
       if (window.UnwipUpdates && window.UnwipUpdates.notice) window.UnwipUpdates.notice({ title: 'A new version of Unwip is ready', version: v, notes, action: 'Update now', run: go });
       else U.toastAction('A new version of Unwip is ready (' + v + ').', 'Update now', go, 60000);
     } catch (e) {}

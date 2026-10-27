@@ -39,6 +39,7 @@ window.UnwipDropbox = (function () {
   // every save marks the file as changed, and a sync follows a few seconds later
   const origWrite = FS.write, origRemove = FS.remove;
   const dirty = new Set();
+  let firstRound = true;   // the first sync since the app opened (see syncFiles)
   const dropping = new Set();   // books being deleted everywhere (lowercase names): a running sync stops uploading them
   const changed = p => {
     if (!p.startsWith(LOCAL)) return; const rel = p.slice(LOCAL.length); dirty.add(rel.toLowerCase());
@@ -234,6 +235,13 @@ window.UnwipDropbox = (function () {
     if (!marked) await writeLayout();
     progress = { phase: 'list', found: 0 }; renderSoon();
     const changedNow = new Set(dirty); dirty.clear();
+    // a sync cut off part-way (signal gone, app closed): what was changed here and not sent yet stays marked as
+    // changed, so the next sync sends it (it used to be forgotten until it changed again; found by the cut-off test,
+    // 27 Oct). Files that did go up are simply found to match next time.
+    try { await syncFiles(opts, changedNow); firstRound = false; }
+    catch (e) { for (const k of changedNow) dirty.add(k); st.pending = true; try { await persist(); } catch {} throw e; }
+  }
+  async function syncFiles(opts, changedNow) {
     // what's in Dropbox
     const remote = {};
     const all = await remoteFiles(), orphan = bookless(all);
@@ -258,6 +266,9 @@ window.UnwipDropbox = (function () {
     // what's here
     const local = {};
     for (const p of await FS.keys(LOCAL)) { const rel = p.slice(LOCAL.length); if (tracked(rel)) local[rel.toLowerCase()] = { rel }; }
+    // the first sync since the app opened: books with changes not yet sent (kept on this device, so it holds after the
+    // app was closed before a sync) have every file looked at, since what changed was only remembered in memory (27 Oct)
+    if (firstRound) { const wait = new Set((st.waiting || []).map(x => String(x).toLowerCase())); if (wait.size) for (const k of Object.keys(local)) if (wait.has(k.split('/')[0])) changedNow.add(k); }
     await binDeletedElsewhere(remote, local);
     const keys = [...new Set([...Object.keys(remote), ...Object.keys(local), ...Object.keys(st.records)])]
       .sort((a, b) => (/^[^/]+\/project\.json$/.test(b) ? 1 : 0) - (/^[^/]+\/project\.json$/.test(a) ? 1 : 0) || (/\/docs\//.test(b) ? 1 : 0) - (/\/docs\//.test(a) ? 1 : 0));
@@ -409,6 +420,9 @@ window.UnwipDropbox = (function () {
       touched.add(localRel); return;
     }
     if (mine) await keepMine(localRel, mine, b);
+    // a chapter coming in much shorter than the one here: this device's longer one goes to Snapshots first (beta, 27 Oct)
+    { const dm = /^([^/]+)\/docs\/([\w-]+)\.html$/.exec(localRel);
+      if (dm && F.__keepLonger) { try { const here = await FS.read(LOCAL + localRel); const h = here == null ? null : typeof here === 'string' ? here : new TextDecoder().decode(here); if (h != null && F.__shrinks(h, new TextDecoder().decode(b))) await F.__keepLonger(dm[1], dm[2], h, 'Kept before a shorter copy came in from Dropbox'); } catch {} } }
     // saved here while this sync was busy fetching it: keep that version too rather than writing over it
     if (dirty.has(k)) { const now = await FS.read(LOCAL + localRel); if (now != null && (!mine || await contentHash(asBytes(now)) !== await contentHash(mine))) await keepMine(localRel, asBytes(now), b); }
     await rawWrite(LOCAL + localRel, isText(localRel) ? new TextDecoder().decode(b) : b);
@@ -808,6 +822,6 @@ window.UnwipDropbox = (function () {
     } catch {}
   }
 
-  return { connect, disconnect, sync, check, render, fillCard, hold, get progress() { return progress; }, connected: () => connected(), get state() { return st; }, get lastError() { return lastError; }, hasKey: !!KEY,
+  return { pending: () => !!(st && st.pending), connect, disconnect, sync, check, render, fillCard, hold, get progress() { return progress; }, connected: () => connected(), get state() { return st; }, get lastError() { return lastError; }, hasKey: !!KEY,
     signIn: { b64url, standalone, redirectUri, pkce, authorizeURL, exchange, refreshRequest } };
 })();

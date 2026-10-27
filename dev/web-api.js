@@ -246,7 +246,25 @@
   // the parts of the book file a person would notice (the binder's names, notes and order, the Story Bible, timeline,
   // continuity notes, links, character sheets); the rest is bookkeeping like the page last open, kept per device
   const matters = t => { try { const j = JSON.parse(t); const w = l => (l || []).map(n => [n.id, n.type, n.title || '', n.synopsis || '', n.status || '', n.label ? n.label.n : '', n.icon || '', n.noBook ? 1 : 0, n.csheet || null, n.type === 'folder' ? w(n.children) : 0]); return JSON.stringify([j.title, w(j.binder), j.bible || null, j.timeline || null, j.continuity || null, j.links || null]); } catch { return null; } };
+  // the safety net (beta, 27 Oct): a chapter about to become much shorter keeps its longer version in Snapshots first,
+  // named so it's never tidied away. Used when it's saved shorter here and when Dropbox brings in a shorter copy.
+  const wordsIn = html => { const t = String(html || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/g, ' ').replace(/&[a-z]+;/g, 'x').trim(); return t ? t.split(/\s+/).length : 0; };
+  const shrinks = (before, after) => { const a = wordsIn(before), b = wordsIn(after); return a >= 15 && b < a / 2; };
+  async function keepLonger(slug, id, html, why) {
+    try {
+      const dir = `${pdir(slug)}/snapshots/${safeId(id)}`, meta = await FS.json(`${dir}/snapshots.json`, []);
+      const last = meta.filter(m => m.keep).sort((a, b) => b.ts - a.ts)[0];
+      if (last && (await FS.text(`${dir}/${last.ts}.html`)) === html) return;
+      const ts = Date.now(); await FS.write(`${dir}/${ts}.html`, html);
+      meta.push({ ts, label: why || 'Kept before this chapter got much shorter', auto: false, keep: true });
+      await FS.write(`${dir}/snapshots.json`, JSON.stringify(meta));
+    } catch (e) { console.warn('keepLonger', e); }
+  }
   async function guardedWrite(slug, p, data) {
+    const doc = /\/docs\/([\w-]+)\.html$/.exec(p);
+    if (doc) {
+      try { const disk = await FS.text(p); if (disk != null && shrinks(disk, data)) await keepLonger(slug, doc[1], disk); const was = seen.get(p); if (was != null && was !== disk && shrinks(was, data)) await keepLonger(slug, doc[1], was); } catch {}
+    }
     try {
       if (seen.has(p)) {
         const now = await FS.text(p);
@@ -433,7 +451,7 @@
       return readScrivEntries(entries);
     },
     __pick: pickFiles, __download: download,
-    __fs: FS, __emit: (name, data) => (LISTENERS[name] || []).forEach(cb => { try { cb(data); } catch (e) { console.warn(e); } }), __device: deviceName,
+    __fs: FS, __keepLonger: keepLonger, __shrinks: shrinks, __emit: (name, data) => (LISTENERS[name] || []).forEach(cb => { try { cb(data); } catch (e) { console.warn(e); } }), __device: deviceName,
     async backupExport(slug) { const p = await FS.json(`${pdir(slug)}/project.json`, {}); return download(await projectArchive(slug), `${slugify(p.title || slug)} ${new Date().toLocaleDateString('en-CA')}.unwip`, 'application/zip'); },
     async backupImportFile() { const [f] = await pickFiles({ accept: '.unwip,.zip,application/zip' }); if (!f) return null; return restoreArchive(await unzip(await bytesOf(f)), ' (restored)'); },
     async backupList(slug) {

@@ -51,7 +51,7 @@ window.UnwipUpdates = (function () {
   async function settings() { try { return await api.getSettings(); } catch { return {}; } }
   let lastNotes = '';
   function readyToast(st) {
-    notice({ title: 'An update is installed', version: st.version, notes: st.notes || lastNotes, action: 'Restart now', run: () => api.relaunch(), later: 'Restart later' });
+    notice({ title: 'An update is installed', version: st.version, notes: st.notes || lastNotes, action: 'Restart now', run: () => U.safeRestart(() => api.relaunch()), later: 'Restart later' });
   }
   // Automatic checks: a little after start, every hour, and whenever Unwip comes back to the front after half an hour.
   // (It used to check at start and then only every six hours, so an Unwip left open all day rarely saw a new version,
@@ -79,7 +79,7 @@ window.UnwipUpdates = (function () {
   // a small button that stays (main screen and the status bar) until Unwip restarts into the new version
   function readyPill(version) {
     const make = () => { const b = document.createElement('button'); b.type = 'button'; b.className = 'up-pill'; b.textContent = 'Restart to update'; b.title = `Unwip ${version} is installed. Restart to start using it (your writing is saved first).`;
-      b.onclick = async () => { try { await U.flushSave(); if (U.saveMetaNow) await U.saveMetaNow(); } catch {} api.relaunch(); }; return b; };
+      b.onclick = () => U.safeRestart(() => api.relaunch()); return b; };
     const head = document.querySelector('.lib-head-right'); if (head && !head.querySelector('.up-pill')) head.prepend(make());
     const sb = document.querySelector('#statusbar .st-spacer'); if (sb && !document.querySelector('#statusbar .up-pill')) sb.after(make());
   }

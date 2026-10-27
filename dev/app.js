@@ -1595,10 +1595,13 @@
     S.dirty = true; S.dirtySinceBackup = true; S.touchedDoc = S.docId;
     $('#st-save').textContent = 'Saving…'; $('#st-save').classList.add('saving');
     clearTimeout(S.saveTimer);
-    S.saveTimer = setTimeout(flushSave, 700);
+    // saved a moment after you stop, and at least every 3 seconds while you keep typing (it used to wait for a pause,
+    // so a long run of typing wasn't on disk until you stopped; found by the force-close test, 27 Oct)
+    if (!S.typingSince) S.typingSince = Date.now();
+    S.saveTimer = setTimeout(flushSave, Date.now() - S.typingSince > 3000 ? 0 : 700);
   }
   async function flushSave() {
-    clearTimeout(S.saveTimer);
+    clearTimeout(S.saveTimer); S.typingSince = 0;
     if (!S.dirty || !S.slug || !S.docId) return;
     S.dirty = false;
     const id = S.docId;
@@ -1626,10 +1629,39 @@
   // Sync calls this first, so what you just did goes up with it instead of showing "Not synced" right after
   async function flushAll() {
     try { await flushSave(); } catch {}
+    try { await flushSplit(); } catch {}
     try { if (window.UnwipMaps && window.UnwipMaps.flush) await window.UnwipMaps.flush(); } catch {}
     try { if (window.UnwipBuild && window.UnwipBuild.flush) await window.UnwipBuild.flush(); } catch {}
     try { if (S.metaTimer && S.slug) await saveMetaNow(); } catch {}
   }
+  // Restarting for an update (beta, 27 Oct: work was lost around one): everything waiting is saved first, and with
+  // Dropbox connected in the web version (iPhone, iPad), a sync runs and finishes before the restart, so the newest
+  // words are in Dropbox too. If saving or the sync doesn't work, it says so and doesn't restart.
+  async function safeRestart(go) {
+    const back = document.createElement('div'); back.className = 'modal-back up-saving';
+    back.innerHTML = '<div class="modal" role="dialog" aria-label="Saving"><div class="m-body"><div class="sy-wait"><span class="sy-spin"></span><div><b>Saving your writing before the update…</b><span></span></div></div></div></div>';
+    document.body.appendChild(back);
+    const say = t => { const s = back.querySelector('.sy-wait span:last-child'); if (s) s.textContent = t; };
+    try {
+      await flushAll();
+      if (S.saveFailing || U_saveFailing()) { back.remove(); toast('Unwip can’t update yet: some writing isn’t saved (the bar at the top says why). It updates once saving works again.', 'warn', 9000); return false; }
+      const D = window.UnwipDropbox;
+      if (api.web && D && D.connected && D.connected()) {
+        say('Syncing with Dropbox…');
+        const ok = await Promise.race([D.sync({ quiet: true }), new Promise(r => setTimeout(() => r('slow'), 45000))]);
+        if (ok !== true) {
+          back.remove();
+          const anyway = await modal({ title: 'Dropbox didn’t finish', body: `<p>Your writing is saved on this ${esc(S.device || 'device')}, but ${ok === 'slow' ? 'Dropbox is taking a long time' : 'the sync with Dropbox didn’t work just now'}${D.lastError ? ` (${esc(D.lastError)})` : ''}.</p><p>If you update now, it syncs the next time Dropbox can be reached. Nothing is lost either way.</p>`,
+            buttons: [{ label: 'Wait', value: false, kind: 'ghost' }, { label: 'Update anyway', value: true, kind: 'primary' }] });
+          if (!anyway) return false;
+          go(); return true;
+        }
+      }
+      say('Restarting…');
+      go(); return true;
+    } catch (e) { back.remove(); toast('Couldn’t get ready to restart: ' + esc(e.message || e), 'warn', 8000); return false; }
+  }
+  const U_saveFailing = () => !!troubleRetry;
   function scheduleMeta() { clearTimeout(S.metaTimer); S.metaTimer = setTimeout(() => saveMetaNow().catch(() => {}), 600); }
   async function saveMetaNow() {
     clearTimeout(S.metaTimer); S.metaTimer = null; if (!S.slug) return;
@@ -4846,7 +4878,7 @@
 
   // test hooks (used by the automated checks, harmless otherwise)
   window.__folio = { S, openProject, openDoc, copyDocForDocs, compileManuscript, flushSave, addNode, setWriter, insertCleanHTML };
-  window.__unwip = { weekSoFar, fmtToggle, fmtShown, startRename, typewriterActive, moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
+  window.__unwip = { safeRestart, weekSoFar, fmtToggle, fmtShown, startRename, typewriterActive, moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
     editStatuses: () => editStatuses(), folderWords, iconHTML, newTitleFor, statusColor, statusName, statusOptions,   // for corkboard.js
     newEventFrom: seed => editEvent(null, seed), showMenu: (x, y, items) => showMenu(x, y, items), deleteBook: p => deleteBook(p), pageTemplate: root => sheetFor(root) ? sheetTemplate(root) : '<p><br></p>',
     get saveFailing() { return !!troubleRetry; }, pasteContent,
