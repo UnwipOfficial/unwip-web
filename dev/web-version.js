@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.47.0";
-window.UNWIP_LATEST_NOTES = "- PC: typing no longer jitters every few seconds while Unwip saves. While you keep typing, only the chapter is saved, and the save no longer holds up the window. The rest of the book is saved when you pause.\n- Rename a book from the main screen: open its \u22ef menu and choose Rename\u2026\n- Scrivener import: statuses now take the colour of the label their chapters carry in Scrivener, so \"Amazon Ready\" comes in gold.\n- PC: the scene break button stays on the toolbar unless the window is very narrow.";
+window.UNWIP_VERSION = "0.47.1";
+window.UNWIP_LATEST_NOTES = "- iPhone: the top bar and the formatting row stay at the top of the screen while you select text or scroll with the keyboard open. iOS used to slide them off the top.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;

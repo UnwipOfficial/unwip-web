@@ -3071,6 +3071,9 @@ body.litrpg .editor p.lit-sys, body.litrpg #editor p.lit-sys { margin: .5em auto
   input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]), select, textarea { font-size: max(16px, 1em) !important; }
 }
 /* while the iPhone keyboard is up, dialogs sit in the part of the screen you can see (set by mobile.js) */
+/* iOS slides the whole page up while selecting or scrolling with the keyboard open (beta, 28 Oct: the top bar and the
+   formatting row went off the top of the screen): they stay at the top of what you can see */
+html.m-editing .m-phead, html.m-editing .m-fbar { translate: 0 var(--vv-top, 0px); }
 html.m-kb-open .modal-back { top: var(--vv-top, 0); bottom: auto; height: var(--vv-h, 100%); align-items: end; padding-bottom: 6px; }
 html.m-kb-open .modal { max-height: calc(var(--vv-h, 100vh) - 16px) !important; }
 @supports (height: 100dvh) {

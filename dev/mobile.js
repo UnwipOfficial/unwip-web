@@ -263,10 +263,13 @@ window.UnwipMobile = (function () {
   function fitVisible() {
     if (!vv) return;
     root.style.setProperty('--vv-h', vv.height + 'px');
-    root.style.setProperty('--vv-top', vv.offsetTop + 'px');
-    root.classList.toggle('m-kb-open', window.innerHeight - vv.height > 120);
+    // (__vvTopTest: iOS sliding the page up, pretended for the checks)
+    const top = Math.max(0, window.__vvTopTest != null ? window.__vvTopTest : vv.offsetTop);
+    root.style.setProperty('--vv-top', top + 'px');
+    root.classList.toggle('m-kb-open', window.innerHeight - vv.height > 120 || window.__vvTopTest != null);
   }
   if (vv) { vv.addEventListener('resize', fitVisible); vv.addEventListener('scroll', fitVisible); fitVisible(); }
+  window.addEventListener('scroll', fitVisible, { passive: true }); document.addEventListener('selectionchange', () => requestAnimationFrame(fitVisible));
   document.addEventListener('focusin', e => {
     const t = e.target; if (!vv || t === editor || !t.matches || !t.matches('input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select')) return;
     // only for an on-screen keyboard, and never once you scroll yourself: Settings focuses its first box, and on a PC
