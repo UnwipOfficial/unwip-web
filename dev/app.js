@@ -280,7 +280,14 @@
     const v = await modal({ title: 'Delete this book?', body: `<p>“${esc(p.title)}” goes to <b>Deleted books</b>, at the bottom of this screen. You can bring it back from there any time.${choices ? '' : where}</p>${choices ? `<p class="hint">${choices.note}</p>` : ''}`,
       buttons: [{ label: 'Cancel', value: false, kind: 'ghost' }, ...(choices ? choices.buttons.map((b, i) => ({ label: b, value: 'c' + i, kind: i === choices.buttons.length - 1 ? 'danger primary' : 'ghost' })) : [{ label: 'Delete', value: 'c0', kind: 'danger primary' }])] });
     if (!v) return;
-    try { await api.deleteProject(p.slug, { how: +v.slice(1) }); } catch (e) { toast(`Couldn’t delete it: ${esc(e.message || e)}`, 'warn', 9000); }
+    try { await api.deleteProject(p.slug, { how: +v.slice(1) }); }
+    catch (e) {
+      // nothing changed: the book is still here, so don't also say it's in Deleted books (beta, 28 Oct)
+      showLibrary();
+      if (/BUSY/.test(String(e.message || e))) toast(`Couldn’t delete “${esc(p.title)}” just now: the Dropbox app (or another program) is busy with its folder. It’s still here, untouched. Try again in a minute.`, 'warn', 12000);
+      else toast(`Couldn’t delete “${esc(p.title)}”: ${esc(e.message || e)}. It’s still here, untouched.`, 'warn', 12000);
+      return;
+    }
     showLibrary();
     toast(`“${esc(p.title)}” is in Deleted books.`);
   }
@@ -4878,7 +4885,7 @@
 
   // test hooks (used by the automated checks, harmless otherwise)
   window.__folio = { S, openProject, openDoc, copyDocForDocs, compileManuscript, flushSave, addNode, setWriter, insertCleanHTML };
-  window.__unwip = { safeRestart, weekSoFar, fmtToggle, fmtShown, startRename, typewriterActive, moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
+  window.__unwip = { deleteBook, safeRestart, weekSoFar, fmtToggle, fmtShown, startRename, typewriterActive, moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
     editStatuses: () => editStatuses(), folderWords, iconHTML, newTitleFor, statusColor, statusName, statusOptions,   // for corkboard.js
     newEventFrom: seed => editEvent(null, seed), showMenu: (x, y, items) => showMenu(x, y, items), deleteBook: p => deleteBook(p), pageTemplate: root => sheetFor(root) ? sheetTemplate(root) : '<p><br></p>',
     get saveFailing() { return !!troubleRetry; }, pasteContent,

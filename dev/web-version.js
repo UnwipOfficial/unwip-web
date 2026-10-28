@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.46.8";
-window.UNWIP_LATEST_NOTES = "- iPad: bold, italic and underline are always on the toolbar now. When space is short, the font box gets narrower instead, and the full font name still shows when you open it.\n- iPad with a keyboard attached: the iPad's own floating bar at the bottom no longer covers the word count, zoom and Record while you type.";
+window.UNWIP_VERSION = "0.46.9";
+window.UNWIP_LATEST_NOTES = "- Import: lists you don't choose for stay as one document. Only the lists where you pick \"One page per \u2026\" are turned into pages, however you move on.\n- Import: pages made from a list are no longer walked through one by one. Next goes past them, and the counter only counts the documents you brought in.\n- Deleting a book while Dropbox is busy with its folder: Unwip waits a few seconds and tries again. If it still can't, it says so plainly and leaves the book as it was, instead of a technical error.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
