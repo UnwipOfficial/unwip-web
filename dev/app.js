@@ -2099,6 +2099,15 @@
           if (fits()) break;
           const el = $(sel, tb); if (el && !el.closest('.tb-tucked') && el.offsetParent !== null) pop.appendChild(el);
         }
+        // then fill what's left: tucking a wide box (Body, the font) can free more room than was needed, so the tools
+        // tucked before it come back, the ones that matter most first, as long as they fit (beta, 28 Oct: ⌘K and the
+        // font size sat in "⋯" next to an empty stretch of toolbar)
+        for (const sel of [...PRIO].reverse()) {
+          const el = $(sel, pop); if (!el) continue;
+          const after = [...tb.children].find(x => x !== more && order.has(x) && order.get(x) > order.get(el));
+          tb.insertBefore(el, after || more);
+          if (!fits()) pop.appendChild(el);
+        }
         [...pop.children].sort((a, b) => order.get(a) - order.get(b)).forEach(el => pop.appendChild(el));
       }
       if (!pop.children.length) { more.hidden = true; pop.classList.add('hidden'); }
