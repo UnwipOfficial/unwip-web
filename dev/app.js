@@ -3568,20 +3568,28 @@
     if (!list.length) return;
     revJump[cat] = ((revJump[cat] ?? -1) + 1) % list.length;
     const issue = list[revJump[cat]];
-    const rect = issue.range.getBoundingClientRect();
-    const wrap = editorWrap.getBoundingClientRect();
-    editorWrap.scrollTop += rect.top - wrap.top - wrap.height * 0.35;
+    // put the cursor at the start of it so you can fix it straight away. First, and without letting the focus
+    // scroll: an iPad scrolls back to where the cursor was when the page takes the focus, which undid the jump
+    // (beta, 29 Oct). Then scroll to it, and again once the iPad has settled.
+    const r = issue.range.cloneRange(); r.collapse(true);
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    try { editor.focus({ preventScroll: true }); } catch { editor.focus(); }
+    if (getSelection().rangeCount === 0 || !editor.contains(getSelection().anchorNode)) { const s2 = getSelection(); s2.removeAllRanges(); s2.addRange(r); }
     if (hasHighlights) {
       CSS.highlights.set('rv-focus', new Highlight(issue.range));
       clearTimeout(jumpTo.t); jumpTo.t = setTimeout(() => CSS.highlights.delete('rv-focus'), 1600);
     }
-    // put the cursor at the start of it so you can fix it straight away
-    const r = issue.range.cloneRange(); r.collapse(true);
-    editor.focus(); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
-    const after = editor.getBoundingClientRect();
-    showTip(issue.msg, rect.left, rect.bottom + 6 + (issue.range.getBoundingClientRect().top - rect.top));
-    clearTimeout(hideTip.t); hideTip.t = setTimeout(hideTip, 2600);
+    jumpQuietUntil = Date.now() + 900;   // the jump's own scrolling doesn't close the reason
+    const go = () => {
+      const rect = issue.range.getBoundingClientRect(), wrap = editorWrap.getBoundingClientRect();
+      if (rect.top < wrap.top + 20 || rect.bottom > wrap.bottom - 20 || Math.abs(rect.top - wrap.top - wrap.height * 0.35) > wrap.height * 0.2) editorWrap.scrollTop += rect.top - wrap.top - wrap.height * 0.35;
+      const at = issue.range.getBoundingClientRect();
+      showTip(issue.msg, at.left, at.bottom + 6);
+    };
+    go(); requestAnimationFrame(go); clearTimeout(jumpTo.t2); jumpTo.t2 = setTimeout(go, 350);
+    clearTimeout(hideTip.t); hideTip.t = setTimeout(hideTip, 2900);
   }
+  let jumpQuietUntil = 0;
 
   // ---- hover card: why it's marked, an example, and fixes where a rule can be sure
   const tip = $('#rv-tip');
@@ -3723,7 +3731,7 @@
       resyncWords(); scheduleSave(); updateCountsSoon(); if (S.revise) scheduleRevise();
     }, 8000);
   }
-  editorWrap.addEventListener('scroll', () => { if (!tip.classList.contains('hidden') && !tip.matches(':hover')) hideTip(); });
+  editorWrap.addEventListener('scroll', () => { if (Date.now() < jumpQuietUntil) return; if (!tip.classList.contains('hidden') && !tip.matches(':hover')) hideTip(); });
 
   // ================================================================== NAME AUTOCOMPLETE
   const Names = window.FolioNames;
