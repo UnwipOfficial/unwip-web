@@ -213,7 +213,7 @@ window.UnwipMobile = (function () {
     // on-screen keyboard it's the keyboard itself
     const pad = IOS && !phone.matches && document.activeElement === editor && !window.__noPadBar;
     root.classList.toggle('m-padbar', pad);
-    if (pad) root.style.setProperty('--pad-kb', (kb >= 30 ? Math.round(kb) + 8 : 76) + 'px');
+    if (pad) root.style.setProperty('--pad-kb', (kb >= 150 ? Math.round(kb) + 8 : kb >= 30 ? Math.min(Math.round(kb) + 8, 76) : 76) + 'px');   // a full on-screen keyboard: above it; the floating bar (reported or not, beta 29 Oct: an iPad reported ~100 for a ~70 bar): 76 at most
     // the words keep clear of iOS's floating ^ v ✓ bar too (since iOS 26 it can sit over the page above the keyboard)
     lift = kb + (IOS && typing ? HW_BAR : 0);
     root.style.setProperty('--m-kb', lift + 'px');

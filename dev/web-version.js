@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.47.4";
-window.UNWIP_LATEST_NOTES = "- PC, Mac and iPad: a new button at the far left of the toolbar hides or brings back the left panel (Ctrl+Shift+[, or \u2318\u21e7[ on a Mac). Each book remembers it.\n- New in Settings \u203a Appearance: \"Hide the left panel while Revise or the side panel is open\". It's on by default on an iPad and off on a PC or Mac, and the left panel comes back when you close them.\n- Writer mode: one way out. \"Exit writer mode\" sits clear of the side panel, and the extra \u2715 on a tablet is gone.";
+window.UNWIP_VERSION = "0.47.5";
+window.UNWIP_LATEST_NOTES = "- iPad with a keyboard attached: the page now ends just above the iPad's floating bar instead of leaving a gap, so you get more of the page while you type.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
