@@ -201,7 +201,7 @@
   $('#sprint-bolt').innerHTML = I.bolt; $('#rp-refresh-ic').innerHTML = I.refresh;
   $('#btn-style').innerHTML = I.style;
   $('#btn-writer').innerHTML = I.writer;
-  $('#btn-cmdk').innerHTML = I.goto + `<span class="cmdk-lbl">Go to or do</span><span class="cmdk-key">${/Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘K' : 'Ctrl K'}</span>`; $('#btn-panel').innerHTML = I.panel; $('#ex-caret').innerHTML = I.caretDown; $('#ex-btn-ic').innerHTML = I.export || I.doc || '';
+  $('#btn-cmdk').innerHTML = I.goto + `<span class="cmdk-lbl">Go to or do</span><span class="cmdk-key">${/Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘K' : 'Ctrl K'}</span>`; $('#btn-panel').innerHTML = I.panel; $('#btn-binder').innerHTML = I.panel.replace('M15 4.5v15', 'M9 4.5v15'); if (/Mac|iPhone|iPad/.test(navigator.userAgent)) $('#btn-binder').dataset.tip = 'Hide or show the left panel · ⌘⇧['; $('#ex-caret').innerHTML = I.caretDown; $('#ex-btn-ic').innerHTML = I.export || I.doc || '';
   $('#btn-cmdk').onclick = () => window.UnwipCommand && window.UnwipCommand.open();
   $$('[data-icon]').forEach(b => b.innerHTML = I[b.dataset.icon]);
   const writerExit = document.createElement('button');
@@ -3274,6 +3274,7 @@
         <label class="check full"><input type="checkbox" id="g-quotes" ${cfg.quotes !== false ? 'checked' : ''}> Show quotes from writers (front page, writer mode, sprints, goals)</label>
         <div class="section-label">Appearance</div>
         <div class="field"><label>Theme and colours</label><button class="btn" id="s-themes" type="button">Themes &amp; colours…</button></div>
+        <label class="check full"><input type="checkbox" id="g-binderauto" ${(window.UnwipSide && window.UnwipSide.binderAuto()) ? 'checked' : ''}> Hide the left panel while Revise or the side panel is open <span class="hint" style="display:inline">(it comes back when you close them)</span></label>
         <div class="field"><label>Typing feel</label><button class="btn" id="s-typing" type="button">Typewriter &amp; animations…</button></div>
         <div class="field full"><label>Fonts</label><div class="set-row"><button class="btn" id="s-bookfont" type="button">Font for the whole book…</button><button class="btn" id="s-import" type="button">Import font files…</button></div>
           <div class="hint">The font while you write: side panel › Style (or the font box in the toolbar). Fonts for print: Export › Preview › Paperback (Book design).</div></div>
@@ -3345,7 +3346,7 @@
     const ok = await modal({ title: 'Settings', body, wide: true, buttons: [{ label: 'Cancel', value: false, kind: 'ghost' }, { label: 'Save', value: true, kind: 'primary' }] });
     if (!ok) return;
     const v = id => $('#' + id, body).value, c = id => $('#' + id, body).checked;
-    S.settings = await api.setSettings({ author: v('g-author').trim(), dailyGoal: Math.max(0, +v('g-daily') || 0), goalColors: gcDraft, importGuide: c('g-impguide'), quotes: c('g-quotes'), autoUpdate: c('g-autoup') });
+    S.settings = await api.setSettings({ author: v('g-author').trim(), dailyGoal: Math.max(0, +v('g-daily') || 0), goalColors: gcDraft, importGuide: c('g-impguide'), quotes: c('g-quotes'), autoUpdate: c('g-autoup'), binderAuto: c('g-binderauto') }); if (window.UnwipSide) window.UnwipSide.layout();
     try { localStorage.setItem('folio-ac', JSON.stringify({ on: c('s-ac'), min: +v('s-acmin') })); } catch {}
     try { localStorage.setItem('folio-dash', c('s-dash') ? 'on' : 'off'); } catch {}
     const langSel = $('#s-lang', body);
@@ -4853,6 +4854,7 @@
     else if (e.key === 'F7') { e.preventDefault(); setRevise(!S.revise); }
     else if (e.key === 'F5') { e.preventDefault(); if (S.revise) $('#rp-refresh').click(); }
     else if (ctrl && e.key === '\\') { e.preventDefault(); $('#btn-split').click(); }
+    else if (ctrl && e.shiftKey && !e.altKey && (e.code === 'BracketLeft' || e.key === '{' || e.key === '[')) { e.preventDefault(); if (window.UnwipSide) window.UnwipSide.toggleBinder(); }
     else if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'd') { e.preventDefault(); const id = S.binderActive && S.selectedId ? S.selectedId : S.docId; if (id) toggleFav(id); }
     else if (e.key === 'F11') { e.preventDefault(); setWriter(!document.body.classList.contains('writer')); }
     else if (e.key === 'Escape' && document.body.classList.contains('writer') && !document.querySelector('.modal-back')) { setWriter(false); }

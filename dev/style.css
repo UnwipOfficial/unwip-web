@@ -195,6 +195,13 @@ body.writer .doc-title { opacity: .55; }
 .writer-exit { position: fixed; top: 14px; right: 18px; opacity: 0; transition: opacity .3s; z-index: 5; }
 body.writer .writer-exit:hover { opacity: 1; }
 body:not(.writer) .writer-exit { display: none; }
+/* the left panel tucked away (button, Ctrl+Shift+[, or while a right panel is open) */
+body.binder-off #workspace .binder { display: none; }
+#btn-binder.on { color: var(--accent); }
+/* writer mode with a panel open: one way out, at the page's corner, clear of the panel (the panel's own ✕ is back
+   once you leave writer mode) */
+body.writer.side-open .writer-exit { right: calc(var(--side-w, 290px) + 18px); }
+body.writer .side-x, body.writer #rp-close { display: none !important; }
 
 /* status bar */
 .statusbar { display: flex; align-items: center; gap: 10px; height: 30px; padding: 0 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; flex-shrink: 0; background: var(--bg); }
@@ -1121,6 +1128,7 @@ input[type=checkbox], input[type=radio], input[type=range] { accent-color: var(-
 .wd-item span { min-width: 0; color: var(--text); }
 .wd-iw { border: 0; background: none; text-align: left; font: 600 15px Georgia, serif; color: var(--accent); cursor: pointer; padding: 0; }
 @media (max-width: 720px) {
+  #btn-binder { display: none !important; }
   .wd-tile { width: min(54px, calc((100vw - 64px) / 5)); height: min(54px, calc((100vw - 64px) / 5)); font-size: 22px; }
   .wd-kb > div { gap: 4px; }
   .wd-key { height: 48px; font-size: 14px; }
@@ -1449,6 +1457,7 @@ html.m-padbar #workspace { bottom: var(--pad-kb, 76px); }
 .tb-pop select { height: 30px; border: 1px solid var(--line); background: var(--paper); color: var(--text); border-radius: 6px; padding: 0 6px; }
 /* smaller windows: shorter labels on the right-hand buttons */
 @media (max-width: 1250px) { .tb-left { min-width: 120px; } }
+@media (max-width: 900px) { .tb-left { min-width: 72px; max-width: 160px; } .tb-left .project-title { min-width: 0; } }   /* iPad portrait: the left-panel button takes its room from the book title */
 @media (max-width: 1080px) { #btn-stuck .tb-label { display: none; } .tb-right { gap: 2px; } }
 
 /* ================================================================== + NEW, TEMPLATES, HELP */

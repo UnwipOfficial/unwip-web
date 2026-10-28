@@ -412,7 +412,7 @@ window.UnwipMobile = (function () {
     document.dispatchEvent(new KeyboardEvent('keydown', k));
   }
   xbtn.onclick = closeTop;
-  setInterval(() => { const on = phone.matches || root.classList.contains('touch-device') ? !!topOpen() : false; xbtn.classList.toggle('show', on); }, 400);
+  setInterval(() => { const t = phone.matches || root.classList.contains('touch-device') ? topOpen() : null; const on = !!t && !(t[0] === 'body.writer' && !phone.matches); xbtn.classList.toggle('show', on); }, 400);
 
   const sync = () => {
     root.classList.toggle('m-phone', phone.matches);

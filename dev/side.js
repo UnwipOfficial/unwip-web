@@ -57,6 +57,43 @@ window.UnwipSide = (function () {
     } finally { busy = false; sync(); }
   }
   function close() { hideAllBut(null); sync(); }
+
+  // The left panel (beta, 28 Oct): a button hides or brings it back (remembered per book on this device), and with
+  // Settings › Appearance › "Hide the left panel while Revise or the side panel is open" it tucks itself away while
+  // a panel on the right is open and comes back when that closes (on by default on an iPad, off on a PC or Mac).
+  // The iPhone shows one panel at a time already, so none of this applies there.
+  const phoneMQ = matchMedia('(max-width: 720px)');
+  const tablet = () => !phoneMQ.matches && matchMedia('(pointer: coarse)').matches;
+  const binderKey = () => 'unwip-binder-off:' + (S.slug || '');
+  let override = false;   // the button pressed while the panel was tucked away for the right panel: shown until that closes
+  function binderAuto() { const v = S.settings && S.settings.binderAuto; return v === undefined ? tablet() : !!v; }
+  function manualOff() { try { return localStorage.getItem(binderKey()) === '1'; } catch { return false; } }
+  function binderHidden() { const c = current(); return manualOff() || (!!c && binderAuto() && !override); }
+  function layout() {
+    const c = current();
+    if (!c) override = false;
+    const b = document.body;
+    b.classList.toggle('side-open', !!c);
+    const el = c && P[c]; if (el && el.offsetWidth) document.documentElement.style.setProperty('--side-w', el.offsetWidth + 'px');
+    const off = !phoneMQ.matches && !!S.project && binderHidden();
+    b.classList.toggle('binder-off', off);
+    const bb = $('#btn-binder'); if (bb) { bb.classList.toggle('on', !off); bb.setAttribute('aria-pressed', String(!off)); }
+  }
+  function toggleBinder() {
+    if (phoneMQ.matches || !S.project) return;
+    if (binderHidden()) {
+      try { localStorage.removeItem(binderKey()); } catch {}
+      if (current() && binderAuto()) override = true;
+    } else {
+      try { localStorage.setItem(binderKey(), '1'); } catch {}
+      override = false;
+    }
+    layout();
+    window.dispatchEvent(new Event('resize'));   // the toolbar fits itself to the new width
+  }
+  { const bb = $('#btn-binder'); if (bb) bb.onclick = toggleBinder; }
+  if (U.on) U.on('project', () => { override = false; setTimeout(layout, 0); });
+  phoneMQ.addEventListener('change', layout);
   function toggle() { const c = current(); if (c && c !== 'revise') close(); else open(last); }
 
   // keep the panel button and the tabs' counts in step with whatever opened a panel
@@ -64,6 +101,7 @@ window.UnwipSide = (function () {
     const c = current();
     const pb = $('#btn-panel'); if (pb) pb.classList.toggle('on', !!c && c !== 'revise');
     if (c && U.makeRoom) U.makeRoom(false);
+    layout();
     const n = new Set($$('#editor span.cmt[data-cid]').map(x => x.dataset.cid)).size + $$('#editor sup.fn').length;
     $$('[data-n]').forEach(x => { x.textContent = n ? ` ${n}` : ''; });
   }
@@ -134,5 +172,5 @@ window.UnwipSide = (function () {
   const nb = $('#btn-notes'); if (nb) nb.onclick = () => (current() === 'comments' ? close() : open('comments'));
   const sb = $('#btn-style'); if (sb) sb.onclick = () => (current() === 'style' ? close() : open('style'));
   sync();
-  return { open, close, toggle, current };
+  return { open, close, toggle, current, layout, toggleBinder, binderAuto };
 })();
