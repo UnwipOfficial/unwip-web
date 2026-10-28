@@ -1443,7 +1443,7 @@ input[type=checkbox], input[type=radio], input[type=range] { accent-color: var(-
 .toolbar.tight #sel-block { width: 86px; }
 /* an iPad with a keyboard attached shows its own floating bar at the bottom while you type and doesn't tell the page:
    the page ends above it (mobile.js m-padbar), so the bottom row and the last lines aren't hidden (beta, 27 Oct) */
-html.m-padbar #workspace { bottom: 76px; }
+html.m-padbar #workspace { bottom: var(--pad-kb, 76px); }
 .tb-more { font-size: 18px; letter-spacing: 1px; flex-shrink: 0; }
 .tb-pop { position: fixed; z-index: 700; display: flex; flex-wrap: wrap; gap: 3px; max-width: 320px; padding: 6px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 28px rgba(0,0,0,.18); }
 .tb-pop select { height: 30px; border: 1px solid var(--line); background: var(--paper); color: var(--text); border-radius: 6px; padding: 0 6px; }

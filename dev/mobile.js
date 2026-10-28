@@ -207,7 +207,13 @@ window.UnwipMobile = (function () {
     const typing = document.activeElement === editor && root.classList.contains('m-editing');
     root.classList.toggle('m-hwkb', IOS && kb < 30 && typing);
     // an iPad (the computer layout) with a keyboard attached: room for its floating bar at the bottom while typing
-    root.classList.toggle('m-padbar', IOS && !phone.matches && kb < 30 && document.activeElement === editor && !window.__noPadBar);
+    // an iPad (the computer layout) while you type: the page ends above whatever covers its bottom. With a keyboard
+    // attached that's iPadOS's floating bar, which some iPads report as a small keyboard and some don't report at all
+    // (then 76 px is kept for it; beta, 28 Oct: on the tester's iPad it was reported, so nothing moved); with the
+    // on-screen keyboard it's the keyboard itself
+    const pad = IOS && !phone.matches && document.activeElement === editor && !window.__noPadBar;
+    root.classList.toggle('m-padbar', pad);
+    if (pad) root.style.setProperty('--pad-kb', (kb >= 30 ? Math.round(kb) + 8 : 76) + 'px');
     // the words keep clear of iOS's floating ^ v ✓ bar too (since iOS 26 it can sit over the page above the keyboard)
     lift = kb + (IOS && typing ? HW_BAR : 0);
     root.style.setProperty('--m-kb', lift + 'px');
