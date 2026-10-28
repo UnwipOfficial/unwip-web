@@ -254,6 +254,7 @@
         e.stopPropagation();
         showMenu(e.clientX, e.clientY, [
           { label: 'Open', action: () => openBook(p) },
+          { label: 'Rename…', action: () => renameBook(p) },
           { label: 'Export…', action: async () => { const ok = await openBook(p); if (ok !== false && S.slug === p.slug) openPreview(); } },
           ...(api.web ? [] : [{ label: 'Show in folder', action: () => api.revealProject(p.slug) }]),
           { label: 'Backups…', action: () => window.UnwipSync && window.UnwipSync.backupsDialog(p.slug, p.title) },
@@ -273,6 +274,18 @@
     catch (e) { toast(`“${esc(p.title)}” isn’t here any more. It may have been deleted or moved on another device (look in Deleted books).`, 'warn', 8000); showLibrary(); }
   }
   // ---- deleting a book: it goes to Deleted books (on this screen), where it can be restored
+  // renaming a book from the main screen (beta, 28 Oct: there was no way to). The name changes everywhere in Unwip and
+  // on your other devices; the folder keeps its name, so Dropbox has nothing to move.
+  async function renameBook(p) {
+    const name = await promptText('Rename this book', 'Book name', p.title || '');
+    if (name == null || !name || name === p.title) return;
+    try {
+      const proj = await api.openProject(p.slug);
+      proj.title = name.slice(0, 120);
+      await api.saveProjectMeta(p.slug, proj);
+      showLibrary(); toast(`Renamed to “${esc(proj.title)}”.`);
+    } catch (e) { toast(`Couldn’t rename it: ${esc(e.message || e)}`, 'warn', 8000); }
+  }
   async function deleteBook(p) {
     // the phone/iPad version with Dropbox may offer "this device only" or "everywhere" (dropbox.js)
     const choices = api.deleteChoices ? await api.deleteChoices(p.slug) : null;
@@ -1605,9 +1618,12 @@
     // saved a moment after you stop, and at least every 3 seconds while you keep typing (it used to wait for a pause,
     // so a long run of typing wasn't on disk until you stopped; found by the force-close test, 27 Oct)
     if (!S.typingSince) S.typingSince = Date.now();
-    S.saveTimer = setTimeout(flushSave, Date.now() - S.typingSince > 3000 ? 0 : 700);
+    // the save made while you keep typing is the chapter alone; the book's details wait for the pause (beta, 28 Oct:
+    // saving the whole book file every 3 seconds made typing jitter on a big book)
+    S.saveTimer = Date.now() - S.typingSince > 3000 ? setTimeout(() => flushSave({ typing: true }), 0) : setTimeout(flushSave, 700);
   }
-  async function flushSave() {
+  async function flushSave(opts) {
+    const typing = !!(opts && opts.typing);
     clearTimeout(S.saveTimer); S.typingSince = 0;
     if (!S.dirty || !S.slug || !S.docId) return;
     S.dirty = false;
@@ -1629,6 +1645,7 @@
     if (f && f.node.series && window.UnwipSeries) window.UnwipSeries.push(f.node, html).catch(e => console.warn('series', e));
     emit('saved', id, html);
     if (f && ['characters', 'places', 'items'].includes((rootOf(id) || {}).kind)) scheduleNames();
+    if (typing) { S.metaWaiting = true; return; }   // saved with the next pause (or on leaving, Sync, restarting)
     try { await saveMetaNow(); } catch { return; }
     if (!troubleRetry) { $('#st-save').textContent = 'Saved'; $('#st-save').classList.remove('saving'); }
   }
@@ -1639,7 +1656,7 @@
     try { await flushSplit(); } catch {}
     try { if (window.UnwipMaps && window.UnwipMaps.flush) await window.UnwipMaps.flush(); } catch {}
     try { if (window.UnwipBuild && window.UnwipBuild.flush) await window.UnwipBuild.flush(); } catch {}
-    try { if (S.metaTimer && S.slug) await saveMetaNow(); } catch {}
+    try { if ((S.metaTimer || S.metaWaiting) && S.slug) await saveMetaNow(); } catch {}
   }
   // Restarting for an update (beta, 27 Oct: work was lost around one): everything waiting is saved first, and with
   // Dropbox connected in the web version (iPhone, iPad), a sync runs and finishes before the restart, so the newest
@@ -1671,7 +1688,7 @@
   const U_saveFailing = () => !!troubleRetry;
   function scheduleMeta() { clearTimeout(S.metaTimer); S.metaTimer = setTimeout(() => saveMetaNow().catch(() => {}), 600); }
   async function saveMetaNow() {
-    clearTimeout(S.metaTimer); S.metaTimer = null; if (!S.slug) return;
+    clearTimeout(S.metaTimer); S.metaTimer = null; S.metaWaiting = false; if (!S.slug) return;
     S.project.totalWords = manuscriptWords(); S.project.lastDevice = S.device || S.project.lastDevice; S.project.lastDeviceId = S.deviceId || S.project.lastDeviceId;
     try { await api.saveProjectMeta(S.slug, S.project); saveTrouble(null); }
     catch (e) {
@@ -2059,8 +2076,8 @@
     const items = [...tb.children].filter(x => x !== more);
     const order = new Map(items.map((el, i) => [el, i]));
     // first to be tucked away → last
-    const PRIO = ['#btn-listen', '#btn-cmdk', '#btn-image', '#btn-footnote', '#btn-numbers', '#btn-bullets', '#btn-scene', '#btn-clear', '[data-cmd="strikeThrough"]', '[data-cmd="justifyFull"]', '[data-cmd="justifyRight"]',
-      '[data-cmd="justifyCenter"]', '[data-cmd="justifyLeft"]', '#sel-size', '#btn-comment', '#sel-block', '#sel-font'];   // B, I and U always stay (beta, 27 Oct: U was gone on an iPad)
+    const PRIO = ['#btn-listen', '#btn-cmdk', '#btn-image', '#btn-footnote', '#btn-numbers', '#btn-bullets', '#btn-clear', '[data-cmd="strikeThrough"]', '[data-cmd="justifyFull"]', '[data-cmd="justifyRight"]',
+      '[data-cmd="justifyCenter"]', '[data-cmd="justifyLeft"]', '#sel-size', '#btn-scene', '#btn-comment', '#sel-block', '#sel-font'];   // B, I and U always stay (beta, 27 Oct: U was gone on an iPad)
     [more, pop].forEach(el => el.addEventListener('mousedown', e => { if (!e.target.closest('select')) e.preventDefault(); }));
     more.onclick = () => {
       if (!pop.classList.contains('hidden')) { pop.classList.add('hidden'); return; }
@@ -4885,7 +4902,7 @@
 
   // test hooks (used by the automated checks, harmless otherwise)
   window.__folio = { S, openProject, openDoc, copyDocForDocs, compileManuscript, flushSave, addNode, setWriter, insertCleanHTML };
-  window.__unwip = { deleteBook, safeRestart, weekSoFar, fmtToggle, fmtShown, startRename, typewriterActive, moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
+  window.__unwip = { renameBook, deleteBook, safeRestart, weekSoFar, fmtToggle, fmtShown, startRename, typewriterActive, moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
     editStatuses: () => editStatuses(), folderWords, iconHTML, newTitleFor, statusColor, statusName, statusOptions,   // for corkboard.js
     newEventFrom: seed => editEvent(null, seed), showMenu: (x, y, items) => showMenu(x, y, items), deleteBook: p => deleteBook(p), pageTemplate: root => sheetFor(root) ? sheetTemplate(root) : '<p><br></p>',
     get saveFailing() { return !!troubleRetry; }, pasteContent,

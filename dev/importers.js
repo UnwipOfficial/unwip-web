@@ -296,6 +296,10 @@ window.FolioImport = (function () {
     const PALETTE = ['#9b968d', '#d39b2a', '#4a7fd0', '#7a5cc7', '#3f9a5a', '#c0392b', '#1f7a8c', '#b5651d'];
     const statusList = Object.entries(statuses).filter(([, n]) => n && !/^no status$/i.test(n)).map(([id, name], i) => ({ id: 's' + id, name, color: /done|final|complete/i.test(name) ? '#3f9a5a' : /to ?do/i.test(name) ? '#9b968d' : /first draft/i.test(name) ? '#d39b2a' : /revis/i.test(name) ? '#4a7fd0' : PALETTE[(i + 3) % PALETTE.length] }));
 
+    // Scrivener's statuses have no colours of their own; the colour a writer sees next to them is the label the
+    // chapters carry, and each status tends to go with one label ("Amazon Ready" chapters labelled Gold). So each status
+    // takes the colour of the label most of its chapters have, when most of them agree (beta, 28 Oct)
+    const statusLabels = {};
     const roots = { manuscript: [], characters: [], places: [], items: [], notes: [], research: [], trash: [] };
     const rtfToHTML = rtf => rtf ? window.FolioRTF.toHTML(rtf) : '';
     // Scrivener's paragraph layout, from the RTF itself: line spacing (\\slN\\slmult1, in 240ths of a line) and the
@@ -354,6 +358,7 @@ window.FolioImport = (function () {
       if (statusId && statusList.some(x => x.id === 's' + statusId)) extra.status = 's' + statusId;
       const labelId = meta && meta.querySelector('LabelID') ? meta.querySelector('LabelID').textContent.trim() : null;
       if (labelId && labels[labelId] && !/^no label$/i.test(labels[labelId]) && labelId !== '-1') extra.label = { n: labels[labelId], c: labelColor[labelId] || '#9b968d' };
+      if (extra.status && extra.label && labelColor[labelId]) { const t = statusLabels[extra.status] = statusLabels[extra.status] || {}; t[labelColor[labelId]] = (t[labelColor[labelId]] || 0) + 1; }
       if (iconM && [...iconM[1]].length <= 4) extra.icon = iconM[1];
       if (usesInclude && type !== 'DraftFolder' && item.parentElement && item.parentElement.closest('BinderItem[Type="DraftFolder"]')) {
         const inc = meta && meta.querySelector(':scope > IncludeInCompile');
@@ -407,6 +412,12 @@ window.FolioImport = (function () {
         if (fam) tally[fam[1].trim()] = (tally[fam[1].trim()] || 0) + w;
         if (sz) sizes[sz[1]] = (sizes[sz[1]] || 0) + w;
       }
+    }
+    for (const s of statusList) {
+      const t = statusLabels[s.id]; if (!t) continue;
+      const all = Object.values(t).reduce((a, b) => a + b, 0), [c, n] = Object.entries(t).sort((a, b) => b[1] - a[1])[0];
+      const hex = (/^rgb\((\d+),(\d+),(\d+)\)$/.exec(c) || []).slice(1).map(x => (+x).toString(16).padStart(2, '0')).join('');
+      if ((n >= 2 ? n / all > 0.5 : all === 1) && hex.length === 6) s.color = '#' + hex;   // (the status colour picker takes #rrggbb)
     }
     const top1 = o => Object.entries(o).sort((a, b) => b[1] - a[1])[0];
     const docFont = (top1(tally) || [])[0] || null, docSize = top1(sizes) ? +top1(sizes)[0] : null;
