@@ -3600,22 +3600,38 @@
   function previewHTML(p) {
     return `<div class="rc-prev">${esc(p.before)}${p.removed ? `<del>${esc(p.removed)}</del>` : ''}${p.added ? `<ins>${esc(p.added)}</ins>` : ''}${esc(p.after)}</div>`;
   }
+  // When the cards pop up (beta, 29 Oct): Show (as before), Tap twice (one tap puts the cursor in, a second tap on the
+  // same highlight opens the card; on a PC a click in a highlight you're already in) or Off; and the "e.g." lines on
+  // or off (off unless turned on). Kept on this device for every book.
+  const CARDS_LS = 'unwip-rv-cards';
+  const cardsCfg = () => { try { const v = JSON.parse(localStorage.getItem(CARDS_LS) || '{}'); return { mode: ['show', 'twice', 'off'].includes(v.mode) ? v.mode : 'show', examples: v.examples === true }; } catch { return { mode: 'show', examples: false }; } };
+  function setCards(ch) { const v = { ...cardsCfg(), ...ch }; try { localStorage.setItem(CARDS_LS, JSON.stringify(v)); } catch {} renderCardsCfg(); }
+  function renderCardsCfg() {
+    const c = cardsCfg();
+    $$('#rp-cards-mode button').forEach(b => b.classList.toggle('on', b.dataset.m === c.mode));
+    const ex = $('#rp-cards-ex'); if (ex) ex.checked = c.examples;
+  }
+  $$('#rp-cards-mode button').forEach(b => { b.onclick = () => { setCards({ mode: b.dataset.m }); if (b.dataset.m !== 'show') { hideTip(); lastKey = ''; } }; });
+  { const ex = $('#rp-cards-ex'); if (ex) ex.onchange = () => setCards({ examples: ex.checked }); }
+  renderCardsCfg();
+  let armedKey = '';
   function showCard(issues, rect) {
     cardIssues = issues;
+    const showEx = cardsCfg().examples;
     tip.className = 'rv-tip rv-card';
     tip.innerHTML = issues.map((is, i) => `
       <div class="rc">
         <div class="rc-cat"><span class="sw ${is.cat}"></span>${esc(CAT_LABEL[is.cat])}</div>
         <div class="rc-msg">${esc(is.msg)}</div>
         ${is.preview ? previewHTML(is.preview) : ''}
-        ${is.example && !is.preview && !is.fixes.length ? `<div class="rc-ex"><span>e.g.</span> ${esc(is.example[0])}<br><span>→</span> ${esc(is.example[1])}</div>` : ''}
+        ${showEx && is.example && !is.preview && !is.fixes.length ? `<div class="rc-ex"><span>e.g.</span> ${esc(is.example[0])}<br><span>→</span> ${esc(is.example[1])}</div>` : ''}
         <div class="rc-actions">
           ${is.fixes.map((f, j) => `<button class="rc-btn primary" data-i="${i}" data-fix="${j}">${esc(f.label)}</button>`).join('')}
           ${is.prev ? `<button class="rc-btn" data-i="${i}" data-act="prev">Show earlier use</button>` : ''}
           <button class="rc-btn ghost" data-i="${i}" data-act="ignore" title="Hide this one">Ignore</button>
           ${is.canIgnoreAll ? `<button class="rc-btn ghost" data-i="${i}" data-act="ignoreall" title="Never flag this word for this reason in this book">Ignore “${esc(is.word.length > 18 ? is.word.slice(0, 18) + '…' : is.word)}” everywhere</button>` : ''}
         </div>
-      </div>`).join('');
+      </div>`).join('') + `<button class="rc-off" type="button" data-act="cardsoff">Stop showing these cards <span>(turn back on in Revise)</span></button>`;
     tip.classList.remove('hidden');
     placeTip(rect.left, rect.bottom + 6, rect.top);
   }
@@ -3631,7 +3647,7 @@
   }
   let tipRaf = 0, lastKey = '';
   editor.addEventListener('mousemove', e => {
-    if (!S.revise || !revResult || tipRaf) return;
+    if (!S.revise || !revResult || tipRaf || cardsCfg().mode !== 'show') return;
     tipRaf = requestAnimationFrame(() => {
       tipRaf = 0;
       const hits = issuesAt(e.clientX, e.clientY);
@@ -3647,19 +3663,25 @@
   });
   // touchscreens (iPad, iPhone): tap a highlight to see why and fix it
   editor.addEventListener('pointerup', e => {
-    if (e.pointerType === 'mouse' || !S.revise || !revResult) return;
+    const mode = cardsCfg().mode;
+    if (!S.revise || !revResult || mode === 'off' || (e.pointerType === 'mouse' && mode === 'show')) return;
     const hits = issuesAt(e.clientX, e.clientY);
-    if (!hits.length) { hideTip(); lastKey = ''; return; }
-    lastKey = hits.map(h => h.key).join('&');
+    if (!hits.length) { armedKey = ''; if (e.pointerType !== 'mouse') { hideTip(); lastKey = ''; } return; }
+    const key = hits.map(h => h.key).join('&');
+    if (mode === 'twice' && key !== armedKey) { armedKey = key; hideTip(); lastKey = ''; return; }   // the first tap only puts the cursor in
+    armedKey = '';
+    lastKey = key;
     const rects = [...hits[0].range.getClientRects()];
     showCard(hits, rects.find(r => e.clientY >= r.top - 2 && e.clientY <= r.bottom + 2) || rects[0]);
   });
   document.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' && !tip.contains(e.target) && !editor.contains(e.target)) { hideTip(); lastKey = ''; } });
-  editor.addEventListener('mouseleave', () => { clearTimeout(cardHideTimer); cardHideTimer = setTimeout(() => { if (!tip.matches(':hover')) { hideTip(); lastKey = ''; } }, 300); });
-  tip.addEventListener('mouseleave', () => { clearTimeout(cardHideTimer); cardHideTimer = setTimeout(() => { hideTip(); lastKey = ''; }, 250); });
+  // (a real mouse only: an iPad sends a made-up mouseleave after taps too, which closed a card a moment after a tap opened it)
+  editor.addEventListener('pointerleave', e => { if (e.pointerType !== 'mouse') return; clearTimeout(cardHideTimer); cardHideTimer = setTimeout(() => { if (!tip.matches(':hover')) { hideTip(); lastKey = ''; } }, 300); });
+  tip.addEventListener('pointerleave', e => { if (e.pointerType !== 'mouse') return; clearTimeout(cardHideTimer); cardHideTimer = setTimeout(() => { hideTip(); lastKey = ''; }, 250); });
   tip.addEventListener('mouseenter', () => clearTimeout(cardHideTimer));
   tip.addEventListener('mousedown', e => e.preventDefault());
   tip.addEventListener('click', e => {
+    if (e.target.closest('.rc-off')) { setCards({ mode: 'off' }); hideTip(); lastKey = ''; toastAction('Cards are off. Turn them back on at the bottom of Revise.', 'Undo', () => setCards({ mode: 'show' }), 6000); return; }
     const b = e.target.closest('.rc-btn'); if (!b) return;
     const is = cardIssues[+b.dataset.i]; if (!is) return;
     if (b.dataset.fix !== undefined) applyFix(is.fixes[+b.dataset.fix]);
