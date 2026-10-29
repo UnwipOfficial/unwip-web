@@ -418,8 +418,11 @@
     async setZoom(f) { const z = Math.min(1.5, Math.max(0.75, +f || 1)); document.documentElement.style.zoom = z; return z; },
     // working on two devices: only matters once Dropbox is connected
     requestTakeover: async () => true, checkTakeover: async () => null,
-    seenLoad: async (slug, id) => { const h = await FS.text(`app/seen/${safeId(slug)}/${safeId(id)}.html`); return h == null ? null : { html: h, at: Date.now() }; },
-    seenSave: async (slug, id, html) => { await FS.write(`app/seen/${safeId(slug)}/${safeId(id)}.html`, html); return true; },
+    // when this device last saw the chapter goes with it (beta, 29 Oct: "at" was the time of reading it back, so a
+    // change from another device never counted as newer and its words never showed in green here); a copy saved
+    // before that has no time, and counts as seen long ago, so the comparison still runs
+    seenLoad: async (slug, id) => { const b = `app/seen/${safeId(slug)}/${safeId(id)}`; const h = await FS.text(b + '.html'); if (h == null) return null; const t = +(await FS.text(b + '.at').catch(() => null)) || 0; return { html: h, at: t }; },
+    seenSave: async (slug, id, html) => { const b = `app/seen/${safeId(slug)}/${safeId(id)}`; await FS.write(b + '.html', html); await FS.write(b + '.at', String(Date.now())); return true; },
     async imagePick() { const [f] = await pickFiles({ accept: 'image/*' }); return f ? { name: f.name, type: f.type || 'image/png', bytes: await bytesOf(f) } : null; },
     libraryInfo: async () => ({ web: true, path: `In this browser on your ${deviceName}`, kind: 'browser', places: [{ kind: 'browser', label: `On this ${deviceName}`, path: 'Saved in the browser', exists: true }], parentMissing: false, device: deviceName }),
     libraryPick: async () => null, libraryMove: async () => { throw new Error('Not available in the web version yet.'); },

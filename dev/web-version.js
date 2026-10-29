@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.47.7";
-window.UNWIP_LATEST_NOTES = "- iPad: tapping a check in Revise (Very hard sentences, Adverbs and the rest) goes through its highlights in the chapter again, one tap at a time.\n- Revise: after each jump, the short reason stays on screen for a moment instead of vanishing at once.";
+window.UNWIP_VERSION = "0.47.8";
+window.UNWIP_LATEST_NOTES = "- iPad and iPhone: when a chapter was changed on another device, opening it now shows what changed. A green bar says where and when, and the new or changed words are in green. Before, only the dot in the chapter list showed.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
