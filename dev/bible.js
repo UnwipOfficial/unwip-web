@@ -962,7 +962,6 @@ window.UnwipBible = (function () {
   // the selection bar's button (Lore), the PC right-click menu, and Ctrl+K
   const hiddenFact = document.createElement('button'); hiddenFact.id = 'btn-add-fact'; hiddenFact.hidden = true; document.body.appendChild(hiddenFact);
   hiddenFact.onclick = () => addFact(getSelection().toString());
-  if (U.api.onAddToBible) U.api.onAddToBible(t => { if (U.level() >= 2 && !phone()) addFact(t || getSelection().toString()); });
 
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && st && !document.querySelector('.modal-back')) { if (st.sel) { st.sel = null; draw(); } else close(); } });
   return { open, close, reopen, shelfHTML: shelfHTMLSaved, get lastShelf() { return lastShelf; }, wireShelf, newEntry, addFact, load, parseSheet, exportHTML: inc => exportHTML(new Set(inc)), get state() { return st; } };

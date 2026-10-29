@@ -187,7 +187,6 @@ select, input { font: inherit; color: inherit; }
 
 /* writer mode */
 body.writer .topbar, body.writer .binder { display: none; }
-body.writer .editor-wrap { background: var(--paper); }
 body.writer .page { box-shadow: none; margin-top: 12vh; }
 body.writer .statusbar { position: fixed; left: 0; right: 0; bottom: 0; opacity: 0; transition: opacity .3s; background: var(--paper); }
 body.writer .statusbar:hover { opacity: 1; }
@@ -201,11 +200,13 @@ body.binder-off #workspace .binder { display: none; }
 /* writer mode with a panel open: one way out, at the page's corner, clear of the panel (the panel's own ✕ is back
    once you leave writer mode) */
 body.writer.side-open .writer-exit { right: calc(var(--side-w, 290px) + 18px); }
+/* one way out of writer mode with a mouse too (owner, 29 Oct): the bottom strip's Exit, with page size, typewriter and
+   fade; the top button is for touch screens, which have no strip */
+@media (pointer: fine) { body.writer .writer-exit { display: none; } }
 body.writer .side-x, body.writer #rp-close { display: none !important; }
 
 /* status bar */
 .statusbar { display: flex; align-items: center; gap: 10px; height: 30px; padding: 0 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; flex-shrink: 0; background: var(--bg); }
-.st-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--faint); }
 .st-spacer { flex: 1; }
 .st-save.saving { color: var(--accent); }
 
@@ -443,7 +444,6 @@ body.sprinting.writer .statusbar { opacity: .8; }
 :root[data-theme="dark"] .sprint-top { color: var(--sprint); background: rgba(242, 193, 78, .14); }
 .sprint-top:hover { background: rgba(224, 162, 0, .22); border-color: transparent; }
 .sprint-top .bolt { display: inline-grid; color: var(--sprint); }
-.sprint-top .bolt svg { width: 15px; height: 15px; }
 .sprint-top.running { background: var(--sprint); color: #2a1f00; font-variant-numeric: tabular-nums; }
 .sprint-top.running .bolt { color: #2a1f00; animation: pulse 1.6s ease-in-out infinite; }
 .sprint-progress { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: rgba(0, 0, 0, .35); transition: width .5s linear; }
@@ -851,7 +851,6 @@ body.in-mood .editor-wrap { overflow: hidden; }
 .ip-btn.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 .ip-grid.emoji { max-height: 210px; overflow: auto; }
 .ip-own label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-.ip-own input { width: 120px; font-size: 18px; }
 
 /* ================= 0.10: themes, typing feel, comments & footnotes, Stuck? ================= */
 /* page colours (Themes & colours) */
@@ -907,12 +906,6 @@ body.page-flat .page { box-shadow: none; background: transparent; }
 .editor { transition: color .2s; }
 .tw-layer { position: fixed; inset: 0; pointer-events: none; z-index: 54; }
 .tw-ghost { position: fixed; white-space: pre; pointer-events: none; transform-origin: 50% 70%; }
-.tw-ghost.fade { animation: tw-fade .16s ease-out both; }
-.tw-ghost.rise { animation: tw-rise .18s cubic-bezier(.2,.8,.3,1) both; }
-.tw-ghost.drop { animation: tw-drop .2s cubic-bezier(.3,1.4,.5,1) both; }
-.tw-ghost.pop { animation: tw-pop .18s cubic-bezier(.3,1.5,.5,1) both; }
-.tw-ghost.ink { animation: tw-ink .28s ease-out both; }
-.tw-ghost.strike { animation: tw-strike .13s ease-out both; }
 
 /* comments & footnotes */
 .editor span.cmt { background: rgba(245, 196, 66, .26); border-bottom: 2px solid rgba(214, 160, 30, .75); cursor: pointer; border-radius: 2px; }
@@ -1206,12 +1199,6 @@ input[type=checkbox], input[type=radio], input[type=range] { accent-color: var(-
 .pl-top .tb-right { margin-left: auto; }
 
 /* 0.11.1: clearer letter effects, hover explanations, demo */
-.tw-ghost.fade { animation: tw-fade .32s ease-out both; }
-.tw-ghost.rise { animation: tw-rise .34s cubic-bezier(.2,1.3,.4,1) both; }
-.tw-ghost.drop { animation: tw-drop .42s cubic-bezier(.3,1.6,.5,1) both; }
-.tw-ghost.pop { animation: tw-pop .3s cubic-bezier(.3,1.7,.5,1) both; }
-.tw-ghost.ink { animation: tw-ink .55s ease-out both; }
-.tw-ghost.strike { animation: tw-strike .22s cubic-bezier(.2,1.4,.4,1) both; }
 :root[data-theme="dark"] { --strike: #fff; }
 .ui-tip { position: fixed; z-index: 200; max-width: 280px; background: #26231f; color: #f4f1ea; border-radius: 8px; padding: 7px 10px; font: 12.5px/1.45 var(--ui); pointer-events: none; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
 :root[data-theme="dark"] .ui-tip { background: #f1eee7; color: #1c1b19; }
@@ -1262,10 +1249,14 @@ input[type=checkbox], input[type=radio], input[type=range] { accent-color: var(-
 .img-bar span { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
 
 /* changes from another computer */
-::highlight(unwip-changed) { background-color: rgba(120, 200, 140, .38); }
-:root[data-theme="dark"] ::highlight(unwip-changed) { background-color: rgba(90, 180, 120, .32); }
+/* words changed on another device: a green that stands out on every theme and page colour (beta, 29 Oct: it followed
+   the theme, not the page, and was faint on a grey or dark page; tests/web/changedgreen.py measures every pairing) */
+::highlight(unwip-changed) { background-color: rgba(80, 190, 110, .45); }
+:root[data-page-tone="dark"] ::highlight(unwip-changed) { background-color: rgba(60, 200, 110, .30); }
 .chg-bar { display: flex; align-items: center; gap: 10px; margin: -30px -40px 24px; padding: 10px 14px; border-radius: 10px; background: #e6f4ea; color: #1f4d2c; font-size: 13px; }
 :root[data-theme="dark"] .chg-bar { background: #1d3325; color: #bfe4ca; }
+:root[data-theme="light"][data-page-tone="dark"] .chg-bar { background: #1d3325; color: #bfe4ca; }
+:root[data-theme="dark"][data-page-tone="light"] .chg-bar { background: #e6f4ea; color: #1f4d2c; }
 .chg-bar > div { flex: 1; display: flex; flex-direction: column; }
 .chg-bar span:not(.chg-sw) { opacity: .8; font-size: 12px; }
 .chg-sw { width: 14px; height: 14px; border-radius: 3px; background: rgba(120, 200, 140, .7); flex-shrink: 0; }
@@ -1540,13 +1531,11 @@ html.m-padbar #workspace { bottom: var(--pad-kb, 76px); }
 .btn.stuck-top { font-weight: 600; border-color: transparent; background: rgba(214, 69, 65, .12); color: #b3322e; }
 .btn.stuck-top:hover { background: rgba(214, 69, 65, .2); border-color: transparent; }
 .btn.stuck-top svg { color: inherit; }
-.btn.stuck-top.nudge { background: rgba(214, 69, 65, .2); color: #a12a26; }
 :root[data-theme="dark"] .btn.stuck-top { background: rgba(240, 110, 100, .15); color: #f19a92; }
 #btn-revise { font-weight: 600; border-color: transparent; background: rgba(124, 58, 237, .11); color: #6d28d9; }
 #btn-revise:hover { background: rgba(124, 58, 237, .18); border-color: transparent; }
 #btn-revise.on { background: #7c3aed; color: #fff; }
 :root[data-theme="dark"] #btn-revise { background: rgba(167, 139, 250, .16); color: #c4b5fd; }
-:root[data-theme="dark"] #btn-revise.on { background: #8b5cf6; color: #fff; }
 .rp-level { margin: 4px 0 8px; }
 .rp-level button.on { color: #6d28d9; }
 :root[data-theme="dark"] .rp-level button.on { color: #c4b5fd; }
@@ -1701,7 +1690,6 @@ html.web .statusbar { padding-bottom: env(safe-area-inset-bottom); height: calc(
   .lib-body { padding: 14px; }
   .lib-row { flex-wrap: wrap; gap: 10px; }
   .lib-actions { flex-wrap: wrap; }
-  .project-grid { grid-template-columns: 1fr; }
   .dash { grid-template-columns: 1fr; }
   .dash-card.dials { flex-wrap: wrap; justify-content: center; }
   /* dialogs use the whole width */
@@ -1815,7 +1803,6 @@ body.writer .selbar .sb-full { display: none; }
 .sb-sep { width: 1px; height: 20px; background: rgba(255,255,255,.18); margin: 0 2px; }
 .tb-more[hidden] { display: none !important; }
 /* side panel sizing */
-.revise-panel:not(.pl-side) { width: 320px; }
 .side-tabs { gap: 0; padding: 8px 6px 6px 8px; }
 .side-tab { padding: 0 8px; font-size: 12.5px; }
 #style-panel .form-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
@@ -2698,7 +2685,6 @@ body.book-font .doc-synopsis, body.book-font .ol-syn, body.book-font .ck-card, b
   .br-wrap { grid-template-columns: 1fr; padding: 10px; }
   .br-tiles { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); max-height: 150px; }
   .bm-page { padding: 14px 12px 40px; }
-  .bm-row, .bm-row:not(:has(select)) { grid-template-columns: 1fr auto; }
   .bm-row .bm-what, .bm-row select { grid-column: 1 / 2; }
   .bm-spells { grid-template-columns: 1fr; }
   .ar-wrap, .sg-wrap { padding: 10px; }
@@ -2751,12 +2737,8 @@ html.web .lib-head { padding-top: calc(18px + env(safe-area-inset-top)); padding
   .bd-top .pl-title { min-width: 0; width: 100%; }
   .bd-extra .btn { font-size: 0; padding: 5px 8px; }
   .bd-extra .btn::first-letter { font-size: 15px; }
-  .bm-row, .bm-row:not(:has(select)) { grid-template-columns: minmax(0, 1fr) auto auto; }
-  .bm-row .bm-name { grid-column: 1; }
   .bm-row select { grid-column: 2; width: auto !important; }
-  .bm-row .bm-what { grid-column: 1 / -1; grid-row: 2; }
   .bm-row:not(:has(select)) .bm-what { grid-column: 1 / -1; }
-  .bm-row .icon-btn { grid-column: 3; grid-row: 1; }
   .bm-row { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
   .bm-sh { flex-wrap: wrap; }
   .bm-sname { min-width: 0; flex: 1 1 140px; }
@@ -2976,7 +2958,7 @@ body.litrpg .editor p.lit-sys, body.litrpg #editor p.lit-sys { margin: .5em auto
 .lg-warn { color: #b07a12; font-size: 12px; margin-left: 6px; }
 /* Build › Character sheet */
 .bs-page { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; max-width: 1240px; margin: 0 auto; padding: 18px; }
-@media (max-width: 900px) { .bs-page { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { }
 .bs-grid { display: flex; gap: 12px; flex-wrap: wrap; }
 .bs-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); flex: 1 1 140px; }
 .bs-grid input { font-size: 14px; }

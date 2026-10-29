@@ -61,19 +61,16 @@ window.UnwipLedger = (function () {
           if ((g = /level\s*up\b.*?\blevel\s+(\d+)/i.exec(m)) || (g = /\b(?:reached|now|is now)\s+level\s+(\d+)/i.exec(m))) { events.push({ ci, order, kind: 'levelup', who }); add(stats, who || main, 'Level', num(g[1]), null, ci, order, m); continue; }
           if (/level\s*up/i.test(m)) { events.push({ ci, order, kind: 'levelup', who }); continue; }
           // +2 Strength / Strength +2 / Strength increased by 2
-          let any = false;
           for (const d of m.matchAll(/([+\-−]\s?\d+)\s+([A-Za-z][A-Za-z '’]{1,24})|([A-Za-z][A-Za-z '’]{1,24}?)\s*([+\-−]\s?\d+)(?![\d/])|([A-Za-z][A-Za-z '’]{1,24}?)\s+(?:increased|raised|went up)\s+by\s+(\d+)/g)) {
             const label = nice(d[2] || d[3] || d[5]); if (!label) continue;
-            events.push({ ci, order, kind: 'delta', who: who || main, stat: keyOf(label) }); any = true;
+            events.push({ ci, order, kind: 'delta', who: who || main, stat: keyOf(label) });
           }
           // Label: 14  /  HP: 40/50
           for (const s of m.matchAll(/([A-Za-z][A-Za-z '’\-]{0,24}?)\s*:\s*([+\-]?\d[\d,]*(?:\.\d+)?)(?:\s*\/\s*(\d[\d,]*))?(?![\d.])/g)) {
             const label = nice(s[1]); if (!label || /^(chapter|day|year|page|time|floor)$/i.test(label)) continue;
             if (who) add(stats, who, label, num(s[2]), s[3] != null ? num(s[3]) : null, ci, order, m);
             else pending.push([main, label, num(s[2]), s[3] != null ? num(s[3]) : null, ci, order, m]);
-            any = true;
           }
-          void any;
         }
       }
       flush();

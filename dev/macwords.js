@@ -1,8 +1,13 @@
 // Unwip - on a Mac, the app's own words read like a Mac app: ⌘K instead of Ctrl+K, "this Mac" instead of
 // "this PC", "Show in Finder". Only Unwip's buttons, menus, tips and messages are changed - never your writing.
+// The keys (⌘ for Ctrl) also on an iPad, iPhone or a Mac's browser, where ⌘ is the key that works (sweep, 29 Oct:
+// those said Ctrl); the PC words ("this Mac", Finder) only in the Mac app.
 (function () {
   'use strict';
-  if (!window.folio || window.folio.platform !== 'darwin') return;
+  if (!window.folio) return;
+  const macApp = window.folio.platform === 'darwin';
+  const appleWeb = !window.folio.platform && /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '');
+  if (!macApp && !appleWeb) return;
   const MOD = { Ctrl: '⌘', Alt: '⌥', Shift: '⇧' };
   const ORDER = ['⌥', '⇧', '⌘'];           // the order Mac menus show them in
   const keys = s => s.replace(/\b((?:(?:Ctrl|Alt|Shift)\+)+)/g, (_m, mods) => {
@@ -13,8 +18,8 @@
     [/\bThis PC\b/g, 'This Mac'], [/\bthis PC\b/g, 'this Mac'], [/\byour other PCs\b/g, 'your other Macs'], [/\bother PCs\b/g, 'other computers'],
     [/\bShow in folder\b/g, 'Show in Finder'], [/\bthe Recycle Bin\b/g, 'the Bin'], [/\bWindows language settings\b/g, 'Mac’s language settings']
   ];
-  const NEEDLE = /Ctrl\+|Alt\+|Shift\+|this PC|This PC|other PCs|Show in folder|Recycle Bin|Windows language/;
-  const fix = s => { let t = keys(s); for (const [re, w] of WORDS) t = t.replace(re, w); return t; };
+  const NEEDLE = macApp ? /Ctrl\+|Alt\+|Shift\+|this PC|This PC|other PCs|Show in folder|Recycle Bin|Windows language/ : /Ctrl\+|Alt\+|Shift\+/;
+  const fix = s => { let t = keys(s); if (macApp) for (const [re, w] of WORDS) t = t.replace(re, w); return t; };
   // never inside the writing itself, or anywhere you type
   const mine = n => { const el = n.nodeType === 1 ? n : n.parentElement; return !el || el.closest('#editor, [contenteditable="true"], textarea, input, .pv-viewport, #reader, .reader'); };
   const ATTRS = ['title', 'data-tip', 'aria-label', 'placeholder'];

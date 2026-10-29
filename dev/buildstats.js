@@ -33,13 +33,11 @@
   // ---- the status screen picture
   function screenSVG(item, d, L) {
     const P = LOOKS[d.look] || LOOKS.system, x = s => esc(String(s == null ? '' : s));
-    const rows = [...d.res.map(r => ({ k: r.name, v: `${fmt(at(r, L))} / ${fmt(at(r, L))}`, bar: true })), ...d.stats.map(s => ({ k: s.name, v: fmt(at(s, L)) }))];
     const H = 210 + Math.ceil(d.stats.length / 2) * 40 + d.res.length * 44 + 40;
     let y = 196;
     const res = d.res.map(r => { const g = `<text x="56" y="${y}" font-size="20" fill="${P.soft}">${x(r.name)}</text><rect x="170" y="${y - 16}" width="420" height="20" rx="4" fill="none" stroke="${P.line}"/><rect x="172" y="${y - 14}" width="416" height="16" rx="3" fill="${P.accent}" opacity=".55"/><text x="744" y="${y}" font-size="18" fill="${P.ink}" text-anchor="end">${x(fmt(at(r, L)))}</text>`; y += 44; return g; }).join('');
     y += 6;
     const st = d.stats.map((s, i) => { const col = i % 2, gx = col ? 400 : 56, gy = y + Math.floor(i / 2) * 40; return `<text x="${gx}" y="${gy}" font-size="20" fill="${P.soft}">${x(s.name)}</text><text x="${gx + 290}" y="${gy}" font-size="22" fill="${P.ink}" text-anchor="end" font-weight="bold">${x(fmt(at(s, L)))}</text>`; }).join('');
-    void rows;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 ${H}" width="800" height="${H}" font-family="'IBM Plex Mono', Menlo, Consolas, monospace">
       <rect width="800" height="${H}" rx="18" fill="${P.bg}"/><rect x="16" y="16" width="768" height="${H - 32}" rx="12" fill="${P.panel}" stroke="${P.line}" stroke-width="2"/>
       <text x="400" y="62" text-anchor="middle" font-size="18" letter-spacing="6" fill="${P.accent}">STATUS</text>

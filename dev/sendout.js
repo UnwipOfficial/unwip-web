@@ -164,7 +164,6 @@ window.UnwipSendOut = (function () {
   }
 
   // ---------------------------------------------------------------- 2. structure
-  const kindOf = r => r.kind;
   function treeLines(shape) {
     const P = S.project, lines = [];
     const add = (t, d, cls = '') => lines.push(`<div class="so-tl ${cls}" style="--d:${d}">${esc(t)}</div>`);

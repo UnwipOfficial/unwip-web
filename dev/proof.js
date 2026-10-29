@@ -502,11 +502,9 @@ pfPlayer(document.getElementById('player'), SESSIONS, { pfPrep: pfPrep, pfApply:
     $('[data-cancel]', prog).onclick = () => { cancelled = true; };
     const keep = $('[data-keep]', prog); if (keep) keep.onclick = () => { cut = true; };
     const book = S.project ? S.project.title : '';
-    const css = getComputedStyle(document.body);
     const ink = '#26231e', paper = '#fbf8f1', accent = '#34528a', pasteBg = 'rgba(238,96,56,.22)';
     const F = tall ? 44 : 40, LH = Math.round(F * 1.55), PAD = tall ? 90 : 220, TOP = tall ? 260 : 210, BOT = tall ? 240 : 150;
     const font = `${F}px "EB Garamond", Georgia, serif`;
-    void css;
     // paragraphs → lines, remembering where each line starts in the text. A paragraph is only measured once (most of
     // the book doesn't change from one frame to the next), so long chapters don't slow the video down.
     const wrapped = new Map();

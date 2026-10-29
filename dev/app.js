@@ -36,12 +36,6 @@
     places: ['Description', 'History', 'Notes'],
     items: ['Description', 'History', 'Notes']
   };
-  const PAGE_SIZES = {
-    'A4': 'A4', 'Letter': 'Letter',
-    '6 x 9 in (paperback)': { width: 6, height: 9 },
-    '5.5 x 8.5 in (paperback)': { width: 5.5, height: 8.5 },
-    '5 x 8 in (paperback)': { width: 5, height: 8 }
-  };
 
   // ------------------------------------------------------------------ state
   const S = { unsaved: {},
@@ -217,7 +211,6 @@
     try { S.settings = await api.getSettings(); } catch {}
     const list = await api.listProjects();
     $('#lib-total-words').textContent = fmt(list.reduce((a, p) => a + (p.words || 0), 0));
-    const todayWritten = list.reduce((a, p) => a + ((p.days || {})[today()] || 0), 0);
     $('#lib-today').textContent = '';
     renderDashboard(list);
     renderQuoteCard();
@@ -1532,6 +1525,7 @@
     NAV.fwd = []; NAV.show = !opts.from;
   }
   const navLive = list => list.filter(x => findNode(x.id) && (rootOf(x.id) || {}).kind !== 'trash');
+  const navMac = () => api.platform === 'darwin' || (!api.platform && /Mac/.test(navigator.platform || ''));   // the same test the Back keys use
   async function navGo(dir, steps = 1) {
     if (!S.slug) return false;
     NAV.back = navLive(NAV.back); NAV.fwd = navLive(NAV.fwd);
@@ -1553,7 +1547,7 @@
     NAV.back = navLive(NAV.back); NAV.fwd = navLive(NAV.fwd);
     const b = NAV.show && NAV.back.length ? NAV.back[NAV.back.length - 1] : null, f = NAV.show && NAV.fwd.length ? NAV.fwd[NAV.fwd.length - 1] : null;
     box.hidden = !b && !f;
-    box.innerHTML = `<div class="nav-in">${b ? `<button type="button" class="nav-chip" data-nav="-1" title="Back (${api.platform === 'darwin' ? 'Cmd+[' : 'Alt+←'})"><i>←</i>Back <span>to ${esc(navTitle(b))}</span></button>` : ''}${f ? `<button type="button" class="nav-chip" data-nav="1" title="Forward (${api.platform === 'darwin' ? 'Cmd+]' : 'Alt+→'})">Forward <span>to ${esc(navTitle(f))}</span><i>→</i></button>` : ''}</div>`;
+    box.innerHTML = `<div class="nav-in">${b ? `<button type="button" class="nav-chip" data-nav="-1" title="Back (${navMac() ? 'Cmd+[' : 'Alt+←'})"><i>←</i>Back <span>to ${esc(navTitle(b))}</span></button>` : ''}${f ? `<button type="button" class="nav-chip" data-nav="1" title="Forward (${navMac() ? 'Cmd+]' : 'Alt+→'})">Forward <span>to ${esc(navTitle(f))}</span><i>→</i></button>` : ''}</div>`;
     $$('[data-nav]', box).forEach(btn => { btn.onclick = () => navGo(+btn.dataset.nav); });
     // hover Back for a moment: the last few places, to jump back more than one
     const bb = $('[data-nav="-1"]', box);
@@ -1574,7 +1568,7 @@
     if (!S.slug || !S.docId || document.querySelector('.modal-back, .tour-card')) return;
     // only on the page: in the binder, Alt+← / → move an item out of or into a folder
     const tg = e.target; if (S.binderActive || (tg && tg !== document.body && !(tg.closest && tg.closest('#editor-wrap')))) return;
-    const mac = api.platform === 'darwin' || (!api.platform && /Mac/.test(navigator.platform || ''));
+    const mac = navMac();
     const dir = mac ? (e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey ? (e.key === '[' ? -1 : e.key === ']' ? 1 : 0) : 0)
       : (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey ? (e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0) : 0);
     if (!dir || !(dir < 0 ? NAV.back.length : NAV.fwd.length)) return;
@@ -3151,7 +3145,6 @@
     });
     setTimeout(() => document.addEventListener('mousedown', function off(ev) { if (!pop.contains(ev.target)) { pop.remove(); document.removeEventListener('mousedown', off); } }), 0);
   };
-  function fontFaceCSS() { return ''; } // imported fonts embed in a later version
 
   // ================================================================== STYLE SETTINGS
   function applyStyle() {
@@ -4943,39 +4936,29 @@
 
   // test hooks (used by the automated checks, harmless otherwise)
   window.__folio = { S, openProject, openDoc, copyDocForDocs, compileManuscript, flushSave, addNode, setWriter, insertCleanHTML };
-  window.__unwip = { renameBook, deleteBook, safeRestart, weekSoFar, fmtToggle, fmtShown, startRename, typewriterActive, moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
+  window.__unwip = { renameBook, safeRestart, weekSoFar, fmtToggle, fmtShown, startRename, typewriterActive, moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
     editStatuses: () => editStatuses(), folderWords, iconHTML, newTitleFor, statusColor, statusName, statusOptions,   // for corkboard.js
-    newEventFrom: seed => editEvent(null, seed), showMenu: (x, y, items) => showMenu(x, y, items), deleteBook: p => deleteBook(p), pageTemplate: root => sheetFor(root) ? sheetTemplate(root) : '<p><br></p>',
+    newEventFrom: seed => editEvent(null, seed), deleteBook: p => deleteBook(p), pageTemplate: root => sheetFor(root) ? sheetTemplate(root) : '<p><br></p>',
     get saveFailing() { return !!troubleRetry; }, pasteContent,
     S, api, I, $, $$, esc, fmt, makeRoom, countWords, today, editor, editorWrap, on, emit,
     modal, copyText, toast, toastAction, confirmBox, promptText, showMenu, quoteToast, placeField, pickIcon,
-    findNode, walkTree, rootOf, isInside, currentBlock, scheduleSave, scheduleMeta, saveMetaNow, flushSave, refreshSnapCount,
+    findNode, walkTree, rootOf, isInside, currentBlock, scheduleSave, scheduleMeta, saveMetaNow, flushSave,
     renderBinder, refreshPlanView, updateStatus, updateCountsSoon, openDoc, addNode, setWriter, setRevise,
     beginSprint, typewriterScroll, applyTheme, insertCleanHTML, resyncWords, openSplit, takeSnapshot, uid,
-    reloadProjectMeta, showLibrary, openProject, leaveProject: () => leaveProject(), importScrivener: () => importScrivener(), DEFAULT_STYLE, setMode, setView: v => setView(v), importWordProject: () => importWordProject(), newProjectTemplate: () => newProjectTemplate(), ROOTS,
+    reloadProjectMeta, showLibrary, openProject, leaveProject: () => leaveProject(), importScrivener: () => importScrivener(), DEFAULT_STYLE, setView: v => setView(v), importWordProject: () => importWordProject(), newProjectTemplate: () => newProjectTemplate(), ROOTS,
     tidyBlankLines, sectionDialog, sheetFor, scheduleNames, fontOptionsHTML, applyStyle, markScenes, docBlocks, rejectChanges, acceptChanges, isTitlePage, compileManuscript, templateGallery, continueWriting, noteLastPlace, caretOffset,
     openPreview, snapshotsDialog, openSettings, flushAll, holdSync, isMine, hereName, importSources, goalsDialog, writtenOn, dayKey, streaks, dial, manuscriptWords, openFind, openSearch, splitAtCursor, setMode, level: m => level(m), restoreRange, refreshToolbar, styleForm, applyStyleNow, refreshSnapCount
   };
 })();
 
-// The main screen's header: one row when everything fits, otherwise the level switch and the tabs go to a second row.
-// It used to switch at a fixed 1320 px, but what's in the header changes (Lore adds Open World, Unwip Dev adds DEV,
-// Dropbox adds Sync now, Set up Unwip comes and goes), so on some screens Record and Settings were pushed off the right
-// edge after picking Lore. Now it measures: try one row, and if the last button ends past the edge, use two.
+// The main screen's header: always two rows on a computer or tablet (the level switch and the tabs on the second), so
+// switching level (Lore adds Open World) doesn't snap it between one row and two; a phone has its own layout.
+// (It once measured whether one row fitted; the measuring went in the sweep of 29 Oct, as it no longer decided anything.)
 (function () {
   const head = document.querySelector('#library .lib-head') || document.querySelector('.lib-head'); if (!head) return;
-  let busy = false;
   function fit() {
-    if (busy || !head.offsetParent || matchMedia('(max-width: 720px)').matches) { head.classList.remove('lh-two'); return; }
-    busy = true;
-    head.classList.remove('lh-two');
-    const right = head.querySelector('.lib-head-right'), edge = head.getBoundingClientRect().right - (parseFloat(getComputedStyle(head).paddingRight) || 0);
-    const last = right && [...right.children].filter(k => k.offsetParent).pop();
-    // always two rows on a computer or tablet: switching level used to snap the header between one row and two
-    // (Lore adds Open World), which jumped the page. The measuring is kept for the right-hand side wrapping.
-    void last; void edge;
-    head.classList.add('lh-two');
-    busy = false;
+    const two = !!head.offsetParent && !matchMedia('(max-width: 720px)').matches;
+    if (head.classList.contains('lh-two') !== two) head.classList.toggle('lh-two', two);
   }
   let t = null; const soon = () => { clearTimeout(t); t = setTimeout(fit, 30); };
   new ResizeObserver(soon).observe(head);

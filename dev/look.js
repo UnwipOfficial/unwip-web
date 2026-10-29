@@ -92,6 +92,9 @@ window.UnwipLook = (function () {
     }
     const pc = PAGE_COL[l.page];
     if (pc) { root.style.setProperty('--page-bg', pc[0]); root.style.setProperty('--page-ink', pc[1]); }
+    // light or dark page, whatever the theme (a light theme can have a dark page, and the other way round): the
+    // green for words changed on another device follows the page, not the theme (beta, 29 Oct)
+    { const pageHex = (pc ? pc[0] : (t.v.paper || cs.getPropertyValue('--paper') || '')).trim(); root.dataset.pageTone = /^#[0-9a-f]{6}$/i.test(pageHex) ? (lum(pageHex) < 0.4 ? 'dark' : 'light') : t.base; }
     const room = l.room === 'dark' ? '#16171a' : l.room === 'black' ? '#000000' : l.room === 'theme' ? 'var(--bg)' : '';
     if (room) root.style.setProperty('--room', room);
     document.body.classList.toggle('page-flat', l.pageStyle === 'flat');

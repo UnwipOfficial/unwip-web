@@ -340,7 +340,6 @@ window.UnwipCharSheet = (function () {
   // the selection bar's button clicks this (it works on the words still selected)
   const hiddenAdd = document.createElement('button'); hiddenAdd.id = 'btn-add-sheet'; hiddenAdd.hidden = true; document.body.appendChild(hiddenAdd);
   hiddenAdd.onclick = () => { const t = getSelection().toString(); if (t.trim()) addFrom(t); };
-  if (U.api.onAddToSheet) U.api.onAddToSheet(t => { if (U.level() >= 2) addFrom(t || getSelection().toString()); });
   const tellLevel = () => { try { U.api.setLevel && U.api.setLevel(U.level()); } catch {} };
   U.on('level', tellLevel); setTimeout(tellLevel, 0);
 

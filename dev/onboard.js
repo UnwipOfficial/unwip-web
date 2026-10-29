@@ -370,6 +370,8 @@ Next: the captain’s log of the Demeter, found on board and read at the inquest
       'Try the Timeline in Detail: each of Dracula’s dated entries sits on its day.'],
     ['#btn-writer', 'Writer mode', 'Full screen, nothing but the page. Typewriter scrolling keeps your line in the middle.',
       { hemingway: 'This is the distraction-free mode. Settings › Typewriter adds focus dimming and sounds.', scrivener: 'Like Composition mode.' }],
+    ['#btn-binder', 'Left panel', 'Hides the chapter list for more room, and brings it back (Ctrl+Shift+[). Settings › Appearance can have it tuck away while Revise is open.'],
+    ['#btn-panel', 'Side panel', 'Insights, Comments, Changes, Snapshots and Style share one panel on the right, with a tab for each. Revise has its own button.'],
     ['#btn-new', 'New', 'Add a scene, chapter, folder or map, or a template section like Factions, Magic or Monsters where every entry starts from the same sheet.'],
     ['#btn-cmdk', 'Go to or do', 'Press Ctrl+K (or this button) and type what you want: “snapshot”, “epub”, “timeline”, a chapter or a character. Every feature is in there, at every level. To find words in your book, use the magnifying glass at the bottom left.'],
     ['#btn-stuck', 'Spark and Sprints', 'Spark has six small tools for a blank page or a slow day. Sprint, next to it, is a timed burst of writing with a word target.'],
@@ -440,6 +442,9 @@ Next: the captain’s log of the Demeter, found on board and read at the inquest
   function tour(steps) {
     if (!S.slug) { tourExample(); return; }
     if (document.body.classList.contains('writer')) U.setWriter(false);
+    // the binder, levels, New, Help and Settings steps are in the left panel: bring it back if it's hidden
+    // (sweep, 29 Oct: those steps were skipped without a word)
+    if (document.body.classList.contains('binder-off') && window.UnwipSide && window.UnwipSide.toggleBinder) window.UnwipSide.toggleBinder();
     endTour();
     if (steps === IMPORT_TOUR) { TOUR = IMPORT_TOUR; tourEnd = 'That’s it. Happy writing!'; }
     tEls = { shade: document.createElement('div'), card: document.createElement('div') };

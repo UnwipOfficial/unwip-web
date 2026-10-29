@@ -45,6 +45,7 @@ window.UnwipCommand = (function () {
     ['Export a Word document', 'docx microsoft editor agent', '', () => U.openPreview('docs'), desk(inProject)],
     ['Split view', 'side by side two documents', 'Ctrl+\\', click('#btn-split'), desk(needDoc)],
     ['Writer mode', 'full screen distraction free focus', 'F11', () => U.setWriter(true), needDoc],
+    ['Hide or show the left panel', 'binder chapter list sidebar more room collapse', 'Ctrl+Shift+[', () => window.UnwipSide && window.UnwipSide.toggleBinder(), desk(() => !!S.project)],
     ['Find in this chapter', 'search text', 'Ctrl+F', () => U.openFind(), needDoc],
     ['Search the whole book', 'find replace everywhere', 'Ctrl+Shift+F', () => U.openSearch('search'), inProject],
     ['Find and replace', 'replace all rename', '', () => U.openSearch('replace'), inProject],

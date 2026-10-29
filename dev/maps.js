@@ -1158,8 +1158,9 @@ window.UnwipMaps = (function () {
     if (!view || document.querySelector('.modal-back')) return;
     if (e.target.closest && e.target.closest('input, textarea, select')) return;
     const ctrl = e.ctrlKey || e.metaKey;
-    if (ctrl && e.key.toLowerCase() === 'z') { e.preventDefault(); e.stopPropagation(); $('#mp-undo', view).click(); }
-    else if (ctrl && e.key.toLowerCase() === 'y') { e.preventDefault(); e.stopPropagation(); $('#mp-redo', view).click(); }
+    if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'z') { e.preventDefault(); e.stopPropagation(); $('#mp-undo', view).click(); }
+    else if (ctrl && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z')))   // Ctrl+Y, or ⌘⇧Z as on a Mac (sweep, 29 Oct: it undid)
+      { e.preventDefault(); e.stopPropagation(); $('#mp-redo', view).click(); }
     else if (!ctrl && !e.altKey && (e.key === ']' || e.key === '[' || e.key === '}' || e.key === '{') && sel) { e.preventDefault(); e.stopPropagation(); const fwd = e.key === ']' || e.key === '}'; reorder(e.shiftKey || e.key === '}' || e.key === '{' ? (fwd ? 'front' : 'back') : (fwd ? 'up' : 'down')); }
     else if (!ctrl && !e.altKey && (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_') && resizable(sel)) { e.preventDefault(); e.stopPropagation(); push(); scaleSel(e.key === '-' || e.key === '_' ? 1 / 1.15 : 1.15); changed(); schedule(); }
     else if (!ctrl && !e.altKey && e.key.toLowerCase() === 'r' && resizable(sel)) { e.preventDefault(); e.stopPropagation(); push(); const step = (e.shiftKey ? -1 : 1) * Math.PI / 12, sh = shape(sel);

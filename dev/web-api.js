@@ -492,7 +492,7 @@
     prefsWrite: async json => { await FS.write(`${LIB}/_Settings/shared.json`, json); return true; },
     onPrefsChange: on('prefs'),
     buildDelete: async id => { await FS.remove(`${LIB}/_Build/items/${safeId(id)}.json`); return true; },
-    onNoteCmd: on('note'), onPastePlain: on('pastePlain'), onSplit: on('split'), onAddToSheet: on('addToSheet'), onAddToBible: on('addToBible'), onAddTo: on('addTo'), onAutocorrectAdd: on('autocorrectAdd'), setLevel: () => {},
+    onNoteCmd: on('note'), onPastePlain: on('pastePlain'), onSplit: on('split'), onAddTo: on('addTo'), onAutocorrectAdd: on('autocorrectAdd'), setLevel: () => {},
     // spelling: the browser's own spellcheck does the work
     addSpellWords: async () => true,
     spellSettings: async () => { const st = await loadSettings(); const l = navigator.language || 'en-AU'; return { available: [l], current: [l], enabled: st.spellcheck !== false }; },
