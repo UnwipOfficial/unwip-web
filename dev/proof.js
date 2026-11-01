@@ -330,7 +330,7 @@ window.UnwipProof = (function () {
     }
     const list = inBook ? await api.proofList(S.slug).catch(() => []) : [];
     const books = inBook ? [] : await api.listProjects().catch(() => []);
-    const info = !api.web && api.videoInfo ? await api.videoInfo().catch(() => null) : null;
+    const info = !api.web && api.videoInfo ? await api.videoInfo(recDir()).catch(() => null) : null;
     let qi = 1;
     const body = document.createElement('div'); body.className = 'pf-dialog';
     const draw = () => {
@@ -404,8 +404,9 @@ window.UnwipProof = (function () {
       ${st.resync ? `<p class="pf-small">${st.resync} time${st.resync === 1 ? '' : 's'} a chapter had changed while Replay wasn’t watching it (written with Replay off, in another window or on another device); the replay jumps to the new text there and the report says so.</p>` : ''}`;
     const go = await U.modal({ title: `Replays of “${S.project.title}”`, body, wide: true,
       onOpen: back => {
-        $$('[data-play]', back).forEach(b => b.onclick = () => { back.querySelector('.m-foot .btn').click(); play([sessions[+b.dataset.play]]); });
-        $$('[data-vid]', back).forEach(b => b.onclick = () => { back.querySelector('.m-foot .btn').click(); timelapse([sessions[+b.dataset.vid]], 'speed'); });
+        $$('[data-play]', back).forEach(b => b.onclick = () => { back.querySelector('.m-foot .btn').click(); play([sessions[+b.dataset.play]], recordings); });
+        $$('[data-vid]', back).forEach(b => b.onclick = () => { back.querySelector('.m-foot .btn').click(); timelapse([sessions[+b.dataset.vid]], 'speed', recordings); });
+        saveBox(back);
         $$('[data-del]', back).forEach(b => b.onclick = async () => {
           const s = sessions[+b.dataset.del];
           if (!await U.confirmBox('Delete this recording?', `The replay from ${new Date(s.started).toLocaleString()} will be deleted. Your writing isn’t touched.`, 'Delete', true)) return;
@@ -414,21 +415,49 @@ window.UnwipProof = (function () {
         });
       },
       buttons: [{ label: 'Close', value: null, kind: 'ghost' }, { label: 'Make a video…', value: 'video' }, { label: 'Save a report…', value: 'report' }, { label: '▶ Play all', value: 'play', kind: 'primary' }] });
-    if (go === 'play') play(sessions);
+    if (go === 'play') play(sessions, recordings);
     else if (go === 'report') saveReport(sessions);
-    else if (go === 'video') timelapse(sessions);
+    else if (go === 'video') timelapse(sessions, undefined, recordings);
+  }
+
+  // ---- where videos and reports go (owner, 1 Nov). PC and Mac: a folder (Videos\Unwip unless one is chosen) and
+  // "Save there without asking" (on unless unticked: then the Save window opens in that folder). Phones and browsers
+  // always ask, as before.
+  const recAsk = () => !!(S.settings && S.settings.recAsk);
+  const recDir = () => (S.settings && S.settings.recDir) || '';
+  async function saveOut(bytes, name, ext, label) {
+    if (!api.web && api.exportToFolder) return api.exportToFolder(bytes, name, ext, label, recDir(), recAsk());
+    return api.exportBinary(bytes, name, ext, label);
+  }
+  async function saveBox(back) {
+    if (api.web || !api.pickFolder || !api.videoInfo) return;
+    const box = document.createElement('div'); box.className = 'pf-save';
+    const info = await api.videoInfo(recDir()).catch(() => null);
+    box.innerHTML = `<b>Save videos and reports to</b><div class="pf-save-row"><span class="pf-path" title="${esc((info && info.folder) || '')}">${esc((info && info.folder) || '')}</span><button type="button" class="btn small" data-pick>Change…</button></div>
+      <label class="check"><input type="checkbox" data-noask ${recAsk() ? '' : 'checked'}> Save there without asking</label>
+      <p class="pf-small">Untick it and the Save window opens in this folder instead, so you can still pick a name or another place.</p>`;
+    const where = back.querySelector('.m-body'); if (!where) return;
+    where.appendChild(box);
+    $('[data-pick]', box).onclick = async () => {
+      const d = await api.pickFolder('Save videos and reports to', recDir()); if (!d) return;
+      S.settings = await api.setSettings({ recDir: d });
+      const i2 = await api.videoInfo(d).catch(() => null); const pth = $('.pf-path', box); pth.textContent = (i2 && i2.folder) || d; pth.title = pth.textContent;
+    };
+    $('[data-noask]', box).onchange = async e => { S.settings = await api.setSettings({ recAsk: !e.target.checked }); };
   }
 
   // ---- the player
-  function play(sessions) {
+  function play(sessions, backTo) {
     const back = document.createElement('div'); back.className = 'pf-back';
-    back.innerHTML = `<div class="pf-shell"><div class="pf-head"><b>Replay · ${esc(S.project ? S.project.title : '')}</b><button class="icon-btn" title="Close (Esc)">✕</button></div><div class="pf-root"></div></div>`;
+    back.innerHTML = `<div class="pf-shell"><div class="pf-head">${backTo ? '<button type="button" class="pf-backto" title="Back to the recordings (Esc)">‹ Recordings</button>' : ''}<b>Replay · ${esc(S.project ? S.project.title : '')}</b><button class="icon-btn" title="Close (Esc)">✕</button></div><div class="pf-root"></div></div>`;
     document.body.appendChild(back);
     const p = pfPlayer($('.pf-root', back), sessions, ENGINE);
     const close = () => { p.stop(); back.remove(); document.removeEventListener('keydown', key, true); };
-    const key = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } else if (e.key === ' ' && e.target.tagName !== 'SELECT') { e.preventDefault(); $('.pf-play', back).click(); } };
+    const toList = () => { close(); if (backTo) backTo(); };
+    const key = e => { if (e.key === 'Escape') { e.stopPropagation(); toList(); } else if (e.key === ' ' && e.target.tagName !== 'SELECT') { e.preventDefault(); $('.pf-play', back).click(); } };
     document.addEventListener('keydown', key, true);
     $('.pf-head .icon-btn', back).onclick = close;
+    const bt = $('.pf-backto', back); if (bt) bt.onclick = toList;
   }
 
   // ---- the report: one file anyone can open in a browser, with the numbers and the replay itself
@@ -457,7 +486,7 @@ ${fp ? `<p class="fp">Fingerprint of the recorded data (SHA-256): <code>${fp}</c
 var SESSIONS = ${data.replace(/</g, '\\u003c')};
 pfPlayer(document.getElementById('player'), SESSIONS, { pfPrep: pfPrep, pfApply: pfApply, pfWords: pfWords, pfView: pfView });
 <\/script></body></html>`;
-    await api.exportBinary(new TextEncoder().encode(html), `Proof of writing - ${title}`, 'html', 'Proof of writing report');
+    await saveOut(new TextEncoder().encode(html), `Proof of writing - ${title}`, 'html', 'Proof of writing report');
   }
 
   // ---- timelapse: the replay drawn into a video
@@ -470,9 +499,28 @@ pfPlayer(document.getElementById('player'), SESSIONS, { pfPrep: pfPrep, pfApply:
   // a video of the replay: a timelapse squeezed into a set length, or at the replay's own speed (1× is as it was
   // typed, with long pauses cut down to 3 seconds, the same as the player)
   const vlen = ms => { const m = Math.round(ms / 60000); return ms < 60000 ? (n => `${n} second${n === 1 ? '' : 's'}`)(Math.max(1, Math.round(ms / 1000))) : m < 60 ? `${m} minute${m === 1 ? '' : 's'}` : `${Math.floor(m / 60)} h ${m % 60} min`; };
-  async function timelapse(sessions, pick) {
+  // Faster than it plays (owner, 1 Nov): each frame is drawn as quickly as the computer allows, stamped with its own
+  // time, encoded as H.264 (WebCodecs) and put into an MP4 (vendor/mp4-muxer). The video plays at exactly the speed
+  // chosen; it's only made faster. Where that isn't there, it's filmed in real time as before.
+  const FAST_CODECS = ['avc1.640028', 'avc1.4d0028'];
+  async function fastCodec(W, H, bps) {
+    if (window.__slowVideo || typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined' || !window.Mp4Muxer) return null;
+    for (const codec of FAST_CODECS) {
+      try { if ((await VideoEncoder.isConfigSupported({ codec, width: W, height: H, bitrate: bps, framerate: 30 })).supported) return codec; } catch {}
+    }
+    return null;
+  }
+  function fastEncoder(codec, W, H, bps) {
+    const muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), video: { codec: 'avc', width: W, height: H, frameRate: 30 }, fastStart: 'in-memory' });
+    const st = { failed: null, muxer };
+    st.enc = new VideoEncoder({ output: (chunk, meta) => { try { muxer.addVideoChunk(chunk, meta); } catch (e) { st.failed = e; } }, error: e => { st.failed = e; } });
+    st.enc.configure({ codec, width: W, height: H, bitrate: bps, framerate: 30, avc: { format: 'avc' } });
+    return st;
+  }
+  async function timelapse(sessions, pick, backTo) {
     const type = videoType();
-    if (!type || !HTMLCanvasElement.prototype.captureStream) { U.toast('This browser can’t make videos. Try Unwip on a computer.', 'warn', 7000); return; }
+    const canFast = !!(await fastCodec(1920, 1080, 4e6));
+    if (!canFast && (!type || !HTMLCanvasElement.prototype.captureStream)) { U.toast('This browser can’t make videos. Try Unwip on a computer.', 'warn', 7000); return; }
     const total0 = pfPrep(sessions).total;
     const body = document.createElement('div'); body.className = 'pf-dialog';
     const speeds = [1, 2, 4, 16];
@@ -480,21 +528,25 @@ pfPlayer(document.getElementById('player'), SESSIONS, { pfPrep: pfPrep, pfApply:
       <div class="pf-q"><b>As it was written</b>${speeds.map(x => `<label><input type="radio" name="tl-len" value="x${x}"${pick === 'speed' && x === 1 ? ' checked' : ''}> ${x === 1 ? 'Real speed (1×)' : x + '× speed'} · ${vlen(total0 / x)}</label>`).join('')}</div>
       <div class="pf-q"><b>Timelapse</b>${[30, 60, 180].map(s => `<label><input type="radio" name="tl-len" value="${s}"${pick !== 'speed' && s === 60 ? ' checked' : ''}> ${s < 60 ? s + ' seconds' : s / 60 + ' minute' + (s > 60 ? 's' : '')}</label>`).join('')}</div>
       <div class="pf-q"><b>Shape</b><label><input type="radio" name="tl-shape" value="wide" checked> Wide (YouTube, computers)</label><label><input type="radio" name="tl-shape" value="tall"> Tall (TikTok, Reels, Shorts)</label></div>
-      <p class="pf-small">Pauses longer than 3 seconds are cut down to 3, like in the player. The video is made in real time, so a 20-minute video takes 20 minutes to make: keep Unwip open and in front while it’s made (a hidden window draws fewer pictures, so the video gets jumpy). You can stop part-way and keep what’s made so far. They’re small files, a few MB a minute.</p>
+      <p class="pf-small">Pauses longer than 3 seconds are cut down to 3, like in the player. ${canFast ? 'It’s made faster than it plays, usually in a small part of its length, and you can keep writing while it’s made. The finished video still plays at the speed you pick.' : 'The video is made in real time, so a 20-minute video takes 20 minutes to make: keep Unwip open and in front while it’s made (a hidden window draws fewer pictures, so the video gets jumpy).'} You can stop part-way and keep what’s made so far. They’re small files, a few MB a minute.</p>
       <p class="pf-warn hidden" id="tl-long"><b>That’s a long video.</b> It’s kept in memory until it’s saved, so for anything over an hour, make it from one session at a time (the 🎬 button next to each one in the list).</p>`;
     const longWarn = () => { const v = ($('input[name="tl-len"]:checked', body) || {}).value || ''; $('#tl-long', body).classList.toggle('hidden', !(v[0] === 'x' && total0 / +v.slice(1) > 3600000)); };
     $$('input[name="tl-len"]', body).forEach(r => r.onchange = longWarn); longWarn();
-    const ok = await U.modal({ title: 'Make a video of the replay', body, wide: true, buttons: [{ label: 'Cancel', value: false, kind: 'ghost' }, { label: 'Make the video', value: true, kind: 'primary' }] });
-    if (!ok) return;
+    const ok = await U.modal({ title: 'Make a video of the replay', body, wide: true, buttons: [{ label: 'Cancel', value: false, kind: 'ghost' }, { label: 'Make the video', value: true, kind: 'primary' }],
+      onOpen: backTo ? bk => { const h = bk.querySelector('.modal h2'); if (!h) return; const b = document.createElement('button'); b.type = 'button'; b.className = 'pf-backto'; b.textContent = '‹ Recordings'; b.title = 'Back to the recordings (Esc)';
+        b.onclick = () => { const c = bk.querySelector('.m-foot .btn'); if (c) c.click(); }; h.prepend(b); } : undefined });
+    if (!ok) { if (backTo) backTo(); return; }
     const lenV = ($('input[name="tl-len"]:checked', body) || {}).value || '60', speed = lenV[0] === 'x' ? +lenV.slice(1) : 0;
     const secs = speed ? Math.max(3, total0 / 1000 / speed) : +lenV || 60, tall = (($('input[name="tl-shape"]:checked', body) || {}).value) === 'tall';
     const W = tall ? 1080 : 1920, H = tall ? 1920 : 1080;
     const data = pfPrep(sessions), ev = data.ev;
     if (!ev.length) return;
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d');
-    const stream = cv.captureStream(30);
-    const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: speed ? 2e6 : 4e6 });
-    const parts = []; rec.ondataavailable = e => { if (e.data && e.data.size) parts.push(e.data); };
+    const bps = speed ? 2e6 : 4e6, codec = await fastCodec(W, H, bps);
+    const fast = codec ? fastEncoder(codec, W, H, bps) : null;
+    const stream = fast ? null : cv.captureStream(30);
+    const rec = fast ? null : new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: bps });
+    const parts = []; if (rec) rec.ondataavailable = e => { if (e.data && e.data.size) parts.push(e.data); };
     const prog = document.createElement('div'); prog.className = 'pf-prog';
     prog.innerHTML = `<b>Making your ${speed ? 'video' : 'timelapse'}…</b><span class="pf-left"></span><div class="pf-bar"><i></i></div>${speed ? '<button class="btn small" data-keep>Stop and save</button>' : ''}<button class="btn small" data-cancel>Cancel</button>`;
     document.body.appendChild(prog);
@@ -536,8 +588,9 @@ pfPlayer(document.getElementById('player'), SESSIONS, { pfPrep: pfPrep, pfApply:
     const total = data.total, frames = secs * 30;
     // The video records in real time, so each picture is drawn for the moment it's due on the clock (if drawing ever
     // falls behind, frames are skipped rather than the whole video stretching out longer and slower than chosen).
-    rec.start(1000);
+    if (rec) rec.start(1000);
     const t0 = performance.now();
+    let made = 0;   // frames put in so far (the fast way)
     let leftAt = 0;
     for (let fr = 0; fr <= frames && !cancelled && !cut;) {
       const vnow = total * fr / frames;
@@ -569,10 +622,36 @@ pfPlayer(document.getElementById('player'), SESSIONS, { pfPrep: pfPrep, pfApply:
       g.fillText(`${pfWords(text).toLocaleString()} words`, PAD, H - (tall ? 120 : 70));
       const tag = 'Written in Unwip'; g.fillText(tag, W - PAD - g.measureText(tag).width, H - (tall ? 120 : 70));
       $('.pf-bar i', prog).style.width = Math.round(100 * fr / frames) + '%';
+      if (fast) {
+        // the frame goes in with its own time; drawing runs ahead as fast as the encoder keeps up
+        const vf = new VideoFrame(cv, { timestamp: Math.round(fr * 1e6 / 30), duration: Math.round(1e6 / 30) });
+        try { fast.enc.encode(vf, { keyFrame: fr % 60 === 0 }); made++; } finally { vf.close(); }
+        while (fast.enc.encodeQueueSize > 6 && !fast.failed) await new Promise(r2 => setTimeout(r2, 2));
+        if (fast.failed) break;
+        if (performance.now() - leftAt > 500) {
+          leftAt = performance.now(); const done = fr + 1, per = (performance.now() - t0) / done, left = (frames - done) * per;
+          $('.pf-left', prog).textContent = `${clock(done / 30 * 1000)} of ${clock(frames / 30 * 1000)} done · ${left > 60000 ? 'about ' + vlen(left) : left > 5000 ? 'about ' + Math.round(left / 1000) + ' seconds' : 'a few seconds'} left`;
+          await new Promise(r2 => setTimeout(r2, 0));   // let the window draw the progress
+        }
+        fr = fr >= frames ? frames + 1 : fr + 1;
+        continue;
+      }
       if (performance.now() - leftAt > 1000) { leftAt = performance.now(); const left = (frames - fr) / 30 * 1000; $('.pf-left', prog).textContent = left > 60000 ? `about ${vlen(left)} left` : ''; }
       const due = t0 + (fr + 1) * 1000 / 30, now = performance.now();
       if (due > now) await new Promise(r => setTimeout(r, due - now)); else await new Promise(r => setTimeout(r, 0));
       fr = fr >= frames ? frames + 1 : Math.min(frames, Math.max(fr + 1, Math.floor((performance.now() - t0) * 30 / 1000)));
+    }
+    if (fast) {
+      prog.remove();
+      if (cancelled) { try { fast.enc.close(); } catch {} U.toast(speed ? 'Video cancelled.' : 'Timelapse cancelled.'); return; }
+      if (!fast.failed) { try { await fast.enc.flush(); } catch (e) { fast.failed = e; } }
+      try { fast.enc.close(); } catch {}
+      if (fast.failed) { console.error('fast video', fast.failed); window.__slowVideo = true; U.toast('The video couldn’t be made the fast way on this device. Try again: it’ll be made in real time.', 'warn', 9000); return; }
+      fast.muxer.finalize();
+      const day0 = new Date(sessions[0].started).toLocaleDateString('en-CA');
+      window.__lastVideo = { frames: made, secs, ms: Math.round(performance.now() - t0), bytes: fast.muxer.target.buffer.byteLength };
+      await saveOut(new Uint8Array(fast.muxer.target.buffer), speed ? `Replay ${speed}x - ${book} ${day0}${sessions.length > 1 ? ' (' + sessions.length + ' sessions)' : ''}` : `Timelapse - ${book}`, 'mp4', 'Video');
+      return;
     }
     await new Promise(r => { rec.onstop = r; rec.stop(); });
     stream.getTracks().forEach(t => t.stop());
@@ -580,7 +659,7 @@ pfPlayer(document.getElementById('player'), SESSIONS, { pfPrep: pfPrep, pfApply:
     if (cancelled) { U.toast(speed ? 'Video cancelled.' : 'Timelapse cancelled.'); return; }
     const blob = new Blob(parts, { type: type.split(';')[0] });
     const day = new Date(sessions[0].started).toLocaleDateString('en-CA');
-    await api.exportBinary(await seekable(new Uint8Array(await blob.arrayBuffer()), type), speed ? `Replay ${speed}x - ${book} ${day}${sessions.length > 1 ? ' (' + sessions.length + ' sessions)' : ''}` : `Timelapse - ${book}`, /mp4/.test(type) ? 'mp4' : 'webm', 'Video');
+    await saveOut(await seekable(new Uint8Array(await blob.arrayBuffer()), type), speed ? `Replay ${speed}x - ${book} ${day}${sessions.length > 1 ? ' (' + sessions.length + ' sessions)' : ''}` : `Timelapse - ${book}`, /mp4/.test(type) ? 'mp4' : 'webm', 'Video');
   }
 
   // a recorded WebM gets its length and an index, so players can skip through it (left as it was if that fails)
@@ -603,7 +682,7 @@ pfPlayer(document.getElementById('player'), SESSIONS, { pfPrep: pfPrep, pfApply:
     // where the video goes: straight to a file as it records
     V.writer = null; V.parts = null; V.path = '';
     try {
-      if (!api.web) { const r = await api.videoBegin(name, ext); V.path = r.path; }
+      if (!api.web) { const r = await api.videoBegin(name, ext, recDir()); V.path = r.path; }
       else if (window.showSaveFilePicker) { const h = await window.showSaveFilePicker({ suggestedName: name + '.' + ext, types: [{ description: 'Video', accept: { [type.split(';')[0]]: ['.' + ext] } }] }); V.writer = await h.createWritable(); V.path = h.name; }
       else V.parts = [];
     } catch (e) { stream.getTracks().forEach(t => t.stop()); if (e && e.name !== 'AbortError') U.toast('Couldn’t start the video file: ' + esc(e.message || e), 'warn'); return; }

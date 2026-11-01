@@ -4121,3 +4121,12 @@ html.bedit .tree-row .tr-count, html.bedit .tree-row .tr-words { display: none; 
 .pp-cancel { align-self: stretch; }
 /* while typing on a phone the ← Back chip stays out of the way (it floated over the words under the row) */
 @media (max-width: 720px) { html.m-editing .nav-chips { display: none !important; } html.m-editing .nav-chips + .page { margin-top: revert-layer; } }
+
+/* Record (owner, 1 Nov): ‹ Recordings in the player and the video window, and where videos and reports are saved */
+.pf-backto { display: inline-flex; align-items: center; gap: 2px; margin-right: 10px; padding: 4px 11px 4px 8px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); font-family: inherit; font-size: 13px; font-weight: 600; line-height: 1.2; cursor: pointer; vertical-align: middle; }
+.pf-backto:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.pf-save { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); display: flex; flex-direction: column; gap: 8px; }
+.pf-save-row { display: flex; gap: 8px; align-items: center; }
+.pf-path { flex: 1; min-width: 0; padding: 6px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pf-head .pf-backto { color: #fff; border-color: rgba(255,255,255,.4); background: rgba(255,255,255,.12); }
+.pf-head .pf-backto + b { flex: 1; }
