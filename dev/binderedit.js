@@ -3,6 +3,8 @@
 // it inside (closed folders open after a moment), or between rows: the line's indent shows which folder it lands in, so
 // sliding the finger left takes it out a level. Ticked rows move together, by dragging any of them or with Move to…,
 // Out of folder or Trash at the bottom. Sections (Characters, Notes…) stay where they are. Nothing is deleted.
+// With a mouse too (owner, 1 Nov): click ticks a row, Shift-click ticks a run, double-click a name renames it;
+// Ctrl+A ticks the rows beside the last one clicked, Delete sends the ticked rows to the Trash, Esc is Done.
 window.UnwipBinderEdit = (function () {
   'use strict';
   const U = window.__unwip; if (!U) return null;
@@ -24,14 +26,12 @@ window.UnwipBinderEdit = (function () {
   function button() {
     const foot = $('.binder-foot'), nb = $('#btn-new'); if (!foot || !nb || $('#btn-bedit')) return;
     const b = document.createElement('button'); b.type = 'button'; b.id = 'btn-bedit'; b.className = 'btn small be-btn';
-    b.innerHTML = '✎ Edit'; b.title = 'Move and tidy the binder: drag rows, or tick several and move them together';
+    b.innerHTML = '✎ Edit'; b.title = 'Move and tidy the binder: tick several rows and move them together';
     b.onclick = start; foot.insertBefore(b, nb);
-    const show = () => { b.hidden = !touch(); };
-    show(); if (window.matchMedia) matchMedia('(pointer: coarse)').addEventListener('change', show);
   }
   function start() {
     if (!S.project) return;
-    on = true; ticked.clear();
+    on = true; ticked.clear(); anchor = null;
     document.documentElement.classList.add('bedit');
     const t = tree(); if (!t) return;
     let top = $('#be-top');
@@ -41,7 +41,7 @@ window.UnwipBinderEdit = (function () {
     U.renderBinder(); bars();
   }
   function stop() {
-    on = false; ticked.clear();
+    on = false; ticked.clear(); anchor = null;
     document.documentElement.classList.remove('bedit');
     for (const id of ['be-top', 'be-bar', 'be-line', 'be-ghost']) { const e = document.getElementById(id); if (e) e.remove(); }
     U.renderBinder();
@@ -49,7 +49,7 @@ window.UnwipBinderEdit = (function () {
   function bars() {
     const top = $('#be-top'), bar = $('#be-bar'); if (!top || !bar) return;
     const T = tops(), canOut = T.some(n => { const f = U.findNode(n.id); return f && f.parent && !f.parent.root; });
-    top.innerHTML = `<b>${T.length ? `${T.length} ticked` : 'Edit the binder'}</b><span class="be-hint">${T.length ? '' : 'Tap a name to rename'}</span><button type="button" class="btn small primary" data-done>Done</button>`;
+    top.innerHTML = `<b>${T.length ? `${T.length} ticked` : 'Edit the binder'}</b><span class="be-hint">${T.length ? '' : touch() ? 'Tap a name to rename' : 'Click rows to tick them · double-click a name to rename'}</span><button type="button" class="btn small primary" data-done>Done</button>`;
     bar.innerHTML = `<button type="button" class="btn small" data-be="move" ${T.length ? '' : 'disabled'}>Move to…</button><button type="button" class="btn small" data-be="out" ${canOut ? '' : 'disabled'}>Out of folder</button><span class="bf-sp"></span><button type="button" class="btn small be-trash" data-be="trash" ${T.length ? '' : 'disabled'}>Trash</button>`;
     $('[data-done]', top).onclick = stop;
     $$('[data-be]', bar).forEach(b => b.onclick = () => act(b.dataset.be));
@@ -58,7 +58,13 @@ window.UnwipBinderEdit = (function () {
     const T = tops(); if (!T.length) return;
     if (what === 'move') { if (await U.moveToDialog(null, T.map(n => n.id))) ticked.clear(); }
     if (what === 'out') { for (const n of T.slice().reverse()) U.moveOut(n.id); ticked.clear(); }
-    if (what === 'trash') { for (const n of T) await U.moveToTrash(n.id); ticked.clear(); U.toast(`${T.length === 1 ? `“${esc(T[0].title || 'Untitled')}” is` : `${T.length} things are`} in the Trash.`); }
+    if (what === 'trash') {
+      for (const n of T) await U.moveToTrash(n.id); ticked.clear();
+      const msg = `${T.length === 1 ? `“${esc(T[0].title || 'Untitled')}” is` : `${T.length} things are`} in the Trash.`;
+      // Undo puts each back where it was, the same way Put back does (last first, so the places line up)
+      const undo = () => { for (const n of T.slice().reverse()) { const from = n.trashedFrom; if (from && from.parent && U.findNode(from.parent) && U.findNode(n.id)) U.moveNodeTo(n.id, from.parent, from.index); } U.renderBinder(); bars(); };
+      if (U.toastAction) U.toastAction(msg, 'Undo', undo, 7000); else U.toast(msg);
+    }
     U.renderBinder(); bars();
   }
 
@@ -77,6 +83,24 @@ window.UnwipBinderEdit = (function () {
       row.appendChild(g);
       if (inTicked.has(f.node.id)) row.classList.add('be-in');
     }
+  }
+  let anchor = null;   // the row clicked last, for Shift-click and Ctrl+A
+  const tickable = () => { const inT = new Set(); walk(S.project.binder, (n, i) => { if (i) inT.add(n.id); });
+    return rowsInOrder().map(r => r.dataset.id).filter(id => { const f = U.findNode(id); return f && !f.node.root && !inT.has(id); }); };
+  // Shift-click: tick every row on screen from the last one clicked to this one
+  function tickRun(id) {
+    const ids = tickable(), a = ids.indexOf(anchor), b = ids.indexOf(id);
+    if (a < 0 || b < 0) return tick(id);
+    for (const x of ids.slice(Math.min(a, b), Math.max(a, b) + 1)) ticked.add(x);
+    U.renderBinder(); bars();
+  }
+  // Ctrl+A: the rows beside the last one clicked (the same folder), or the manuscript's top rows
+  function tickAll() {
+    const f = anchor && U.findNode(anchor);
+    const list = f ? f.list : ((U.findNode('root-manuscript') || {}).node || {}).children || [];
+    const on2 = new Set(tickable());
+    for (const n of list) if (on2.has(n.id)) ticked.add(n.id);
+    U.renderBinder(); bars();
   }
   function tick(id) {
     const inT = new Set(); walk(S.project.binder, (n, i) => { if (i) inT.add(n.id); });
@@ -193,6 +217,7 @@ window.UnwipBinderEdit = (function () {
   // ---------------------------------------------------------------- wiring
   function wire() {
     const t = tree(); if (!t || t.dataset.beWired) return; t.dataset.beWired = '1';
+    t.addEventListener('pointerdown', e => { lastPointer = e.pointerType || 'mouse'; }, true);
     t.addEventListener('pointerdown', down, true);
     // while editing, a tap ticks (the arrow still opens and closes a folder) and holding doesn't open the menu
     t.addEventListener('click', e => {
@@ -204,12 +229,33 @@ window.UnwipBinderEdit = (function () {
       e.preventDefault(); e.stopImmediatePropagation();
       // tapping the name renames it (beta, 26 Oct: on an iPhone a double tap opened it instead); the circle or the rest
       // of the row ticks it
-      if (e.target.closest('.tr-title')) { U.startRename(row, f.node); return; }
-      tick(f.node.id);
+      if (lastPointer !== 'mouse') {
+        if (e.target.closest('.tr-title')) { U.startRename(row, f.node); return; }
+        tick(f.node.id); return;
+      }
+      // a mouse: a click ticks (Shift-click ticks a run); a double-click on the name renames it, keeping the tick as it was
+      if (e.detail === 2 && e.target.closest('.tr-title')) {
+        tick(f.node.id);   // (the first click of the two ticked it)
+        const again = $(`#binder-tree .tree-row[data-id="${f.node.id}"]`); if (again) U.startRename(again, f.node);
+        return;
+      }
+      if (e.shiftKey && anchor) tickRun(f.node.id); else tick(f.node.id);
+      anchor = f.node.id;
     }, true);
     t.addEventListener('contextmenu', e => { if (on) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
     t.addEventListener('dragstart', e => { if (on) e.preventDefault(); }, true);
   }
+  let lastPointer = 'touch';
+  // keys while editing, with a keyboard (not while typing a name or in the page)
+  document.addEventListener('keydown', e => {
+    if (!on || e.isComposing || document.querySelector('.modal-back, .cmdk-back')) return;
+    const a = document.activeElement;
+    if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+    const mod = e.ctrlKey || e.metaKey;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); stop(); }
+    else if ((e.key === 'Delete' || e.key === 'Backspace') && !mod && !e.altKey) { e.preventDefault(); e.stopImmediatePropagation(); if (tops().length) act('trash'); }
+    else if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'a') { e.preventDefault(); e.stopImmediatePropagation(); tickAll(); }
+  }, true);
   U.on('binder', () => { wire(); button(); decorate(); });
   U.on('leave', () => { if (on) stop(); });
   button(); wire();

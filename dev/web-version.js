@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.48.0";
-window.UNWIP_LATEST_NOTES = "- Writer quotes: every one was checked against its source. Six that were slightly misquoted now read as the writer wrote them, and five that weren't really the writer's own published words are gone.";
+window.UNWIP_VERSION = "0.48.1";
+window.UNWIP_LATEST_NOTES = "- PC and Mac: \u270e Edit at the bottom of the binder, as on the iPad, made for a mouse. Click rows to tick them, Shift-click to tick a run, then drag them by \u2261 or use Move to\u2026, Out of folder or Trash. Double-click a name to rename it, Ctrl+A ticks the rows beside the last one you clicked, Delete sends the ticked rows to the Trash (with Undo), and Esc finishes.\n- Outside Edit the binder works as before: drag a row, right-click, Alt+arrows.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;

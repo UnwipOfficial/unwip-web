@@ -4083,6 +4083,8 @@ html.bedit #binder-tree { position: relative; }
 .be-ck.in { background: color-mix(in srgb, var(--accent) 45%, transparent); border-color: transparent; }
 .be-grip { margin-left: auto; flex: none; padding: 8px 6px 8px 14px; font-size: 20px; line-height: 1; color: var(--muted); touch-action: none; cursor: grab; }
 html.bedit .tree-row .tr-count, html.bedit .tree-row .tr-words { display: none; }
+/* with a mouse (owner, 1 Nov): smaller circles and ≡, so the names keep their room */
+@media (pointer: fine) { .be-ck { width: 17px; height: 17px; font-size: 10px; } .be-grip { font-size: 16px; padding: 4px 4px 4px 10px; } }
 .tree-row.be-into { outline: 2px solid var(--accent); outline-offset: -2px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .tree-row.be-moving { opacity: .35; }
 #be-line { position: absolute; right: 8px; height: 3px; border-radius: 2px; background: var(--accent); pointer-events: none; z-index: 5; }
