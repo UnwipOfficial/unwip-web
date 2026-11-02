@@ -330,7 +330,7 @@ window.UnwipProof = (function () {
     }
     const list = inBook ? await api.proofList(S.slug).catch(() => []) : [];
     const books = inBook ? [] : await api.listProjects().catch(() => []);
-    const info = !api.web && api.videoInfo ? await api.videoInfo(recDir()).catch(() => null) : null;
+    let info = !api.web && api.videoInfo ? await api.videoInfo(recDir()).catch(() => null) : null;
     let qi = 1;
     const body = document.createElement('div'); body.className = 'pf-dialog';
     const draw = () => {
@@ -368,6 +368,7 @@ window.UnwipProof = (function () {
       $$('input[name="pf-q"]', body).forEach(r => r.onchange = () => { qi = +r.value; draw(); });
       const vb = $('#pf-video', body); if (vb) vb.onclick = () => { closeDlg(); startVideo(QUALITY[qi], info); };
       const rm = $('#pf-remind', body); if (rm) rm.onchange = () => setRemind(rm.checked);
+      saveBox(body, (d, i2) => { if (i2) { info = i2; draw(); } });
     };
     let closeDlg = () => {};
     draw();
@@ -406,7 +407,7 @@ window.UnwipProof = (function () {
       onOpen: back => {
         $$('[data-play]', back).forEach(b => b.onclick = () => { back.querySelector('.m-foot .btn').click(); play([sessions[+b.dataset.play]], recordings); });
         $$('[data-vid]', back).forEach(b => b.onclick = () => { back.querySelector('.m-foot .btn').click(); timelapse([sessions[+b.dataset.vid]], 'speed', recordings); });
-        saveBox(back);
+        saveBox(back.querySelector('.m-body'));
         $$('[data-del]', back).forEach(b => b.onclick = async () => {
           const s = sessions[+b.dataset.del];
           if (!await U.confirmBox('Delete this recording?', `The replay from ${new Date(s.started).toLocaleString()} will be deleted. Your writing isn’t touched.`, 'Delete', true)) return;
@@ -429,19 +430,22 @@ window.UnwipProof = (function () {
     if (!api.web && api.exportToFolder) return api.exportToFolder(bytes, name, ext, label, recDir(), recAsk());
     return api.exportBinary(bytes, name, ext, label);
   }
-  async function saveBox(back) {
-    if (api.web || !api.pickFolder || !api.videoInfo) return;
+  // (beta, 2 Nov: it was only in the recordings list, which doesn't open until there's a replay; now it's also in the
+  // Record window and in Settings › Recordings and videos)
+  async function saveBox(where, onChange) {
+    if (api.web || !api.pickFolder || !api.videoInfo || !where) return;
     const box = document.createElement('div'); box.className = 'pf-save';
     const info = await api.videoInfo(recDir()).catch(() => null);
     box.innerHTML = `<b>Save videos and reports to</b><div class="pf-save-row"><span class="pf-path" title="${esc((info && info.folder) || '')}">${esc((info && info.folder) || '')}</span><button type="button" class="btn small" data-pick>Change…</button></div>
       <label class="check"><input type="checkbox" data-noask ${recAsk() ? '' : 'checked'}> Save there without asking</label>
       <p class="pf-small">Untick it and the Save window opens in this folder instead, so you can still pick a name or another place.</p>`;
-    const where = back.querySelector('.m-body'); if (!where) return;
+    where.querySelectorAll(':scope > .pf-save').forEach(x => x.remove());
     where.appendChild(box);
     $('[data-pick]', box).onclick = async () => {
       const d = await api.pickFolder('Save videos and reports to', recDir()); if (!d) return;
       S.settings = await api.setSettings({ recDir: d });
       const i2 = await api.videoInfo(d).catch(() => null); const pth = $('.pf-path', box); pth.textContent = (i2 && i2.folder) || d; pth.title = pth.textContent;
+      if (onChange) onChange(d, i2);
     };
     $('[data-noask]', box).onchange = async e => { S.settings = await api.setSettings({ recAsk: !e.target.checked }); };
   }
@@ -761,5 +765,5 @@ ${PLAYER_CSS()}`;
   // the app's own copy of the player styles
   { const st = document.createElement('style'); st.textContent = PLAYER_CSS().replace(/var\(--ink\)/g, 'var(--text)'); document.head.appendChild(st); }
 
-  return { open, renderStatus, recordings, play, setReplay, setRemind, pauseVideo, isOn: () => R.on, flush, stopVideo, saveReport, timelapse, startVideo, loadSessions, QUALITY, _engine: ENGINE, _R: R, _V: V };
+  return { open, saveBox, renderStatus, recordings, play, setReplay, setRemind, pauseVideo, isOn: () => R.on, flush, stopVideo, saveReport, timelapse, startVideo, loadSessions, QUALITY, _engine: ENGINE, _R: R, _V: V };
 })();

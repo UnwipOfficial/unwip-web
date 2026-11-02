@@ -3299,6 +3299,8 @@
         <div class="field full" id="s-lib"><label>Loading…</label></div>
         <div class="section-label">Extra backup copy <span class="sl-now">· applies straight away</span></div>
         <div class="field full" id="s-extra"></div>
+<div class="pc-only">        <div class="section-label">Recordings and videos <span class="sl-now">· applies straight away</span></div>
+        <div class="field full" id="s-rec"></div></div>
       </div>`;
     // a row of section names at the top: every setting stays on the one page, this only jumps to it
     const jump = $('.set-jump', body);
@@ -3328,6 +3330,7 @@
     if ($('#s-dict', body)) $('#s-dict', body).onclick = dictionaryDialog;
     if (window.UnwipAutocorrect && $('#s-autocorrect', body)) window.UnwipAutocorrect.wireSettings($('#s-autocorrect', body));
     if (window.UnwipSync) window.UnwipSync.settingsSection(body);
+    if (window.UnwipProof && window.UnwipProof.saveBox && !api.web) window.UnwipProof.saveBox($('#s-rec', body));
     if (window.UnwipLicence) window.UnwipLicence.settingsSection(body);
     if (window.UnwipLitRPG) window.UnwipLitRPG.settingsSection(body);
     $('#g-intro', body).onclick = () => { body.closest('.modal-back').remove(); window.UnwipIntro && window.UnwipIntro.start(); };

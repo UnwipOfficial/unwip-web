@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.48.2";
-window.UNWIP_LATEST_NOTES = "- Record: \u2039 Recordings in the player and the video window takes you back to the list of recordings, so finding the right one doesn't mean starting over. Esc does the same.\n- Record: replay videos are made much faster than they play on PC and Mac (and wherever the device can), and still play at the speed you pick. An 11-second test replay took about 2 seconds to make.\n- Record on PC and Mac: choose where videos and reports are saved, at the bottom of the recordings list. They go straight there (Videos\\Unwip to start with), or untick \"Save there without asking\" to pick each time.";
+window.UNWIP_VERSION = "0.48.3";
+window.UNWIP_LATEST_NOTES = "- Record on PC and Mac: where videos and reports are saved is now at the bottom of the Record window and in Settings \u203a Recordings and videos, so you can change it before you've made a single recording. Before, it was only in the recordings list, which doesn't open until there's a replay.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
