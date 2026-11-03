@@ -461,8 +461,11 @@
     S.sessionTyped = 0;
     S.project.totalWords = total; scheduleMeta(); // refresh a stale total straight away
     renderBinder();
-    const first = project.lastDoc && findNode(project.lastDoc) ? project.lastDoc : firstDocId();
+    const lp0 = (S.settings || {}).lastPlace, here = ((S.settings || {}).lastPlaces || {})[slug] || (lp0 && lp0.slug === slug ? lp0 : null);
+    const spot = here && here.docId && findNode(here.docId) ? here : null;
+    const first = spot ? spot.docId : project.lastDoc && findNode(project.lastDoc) ? project.lastDoc : firstDocId();
     if (first) await openDoc(first); else showEmpty(true);
+    if (spot && S.docId === spot.docId) requestAnimationFrame(() => { if (!navTouch()) placeCaretAt(spot.offset || 0); else editorWrap.scrollTop = spot.top || 0; });
     updateStatus();
     api.backup(slug).catch(() => {});
     project.goals = project.goals || { daily: 0, total: 0, deadline: '' };
@@ -509,7 +512,7 @@
     return out;
   }
   async function leaveProject() {
-    if (S.lastPlace && S.lastPlace.slug === S.slug) { clearTimeout(S.lastPlaceT); try { S.settings = await api.setSettings({ lastPlace: S.lastPlace }); } catch {} }
+    if (S.lastPlace && S.lastPlace.slug === S.slug) { clearTimeout(S.lastPlaceT); try { S.settings = await api.setSettings({ lastPlace: S.lastPlace, lastPlaces: placesWith(S.lastPlace) }); } catch {} }
     if (S.sprint) await endSprint(false);
     S.sprintDone = null;   // its result is already saved with the book
     if (S.brk && S.brk.then) stopBreak();   // rounds belong to the book; a break timer on its own keeps going
@@ -1973,6 +1976,13 @@
     const r = document.createRange(); r.selectNodeContents(editor); r.setEnd(sel.anchorNode, sel.anchorOffset);
     return r.toString().length;
   }
+  // the same spot kept for each book alone (owner, 3 Nov: leave a book and come back, and you're back where you typed
+  // last), on this device, for the 40 books used most recently
+  function placesWith(lp) {
+    const all = { ...((S.settings || {}).lastPlaces || {}) };
+    if (lp && lp.slug) all[lp.slug] = { docId: lp.docId, offset: lp.offset, top: lp.top || 0, at: lp.at };
+    return Object.fromEntries(Object.entries(all).sort((a, b) => (b[1].at || 0) - (a[1].at || 0)).slice(0, 40));
+  }
   function noteLastPlace(now) {
     if (!S.slug || !S.docId) return;
     const off = caretOffset(); if (off == null) return;
@@ -1982,9 +1992,9 @@
     let snip = '';
     if (blk) { const r = document.createRange(); r.selectNodeContents(blk); r.setEnd(sel.anchorNode, sel.anchorOffset); snip = r.toString(); if (snip.length < 40 && blk.previousElementSibling) snip = blk.previousElementSibling.textContent + ' ' + snip; }
     snip = snip.replace(/\s+/g, ' ').trim().slice(-90);
-    S.lastPlace = { slug: S.slug, docId: S.docId, offset: off, project: S.project.title, doc: f ? f.node.title : '', snippet: snip, at: Date.now() };
+    S.lastPlace = { slug: S.slug, docId: S.docId, offset: off, top: Math.round(editorWrap.scrollTop), project: S.project.title, doc: f ? f.node.title : '', snippet: snip, at: Date.now() };
     clearTimeout(S.lastPlaceT);
-    const save = () => { if (S.lastPlace) api.setSettings({ lastPlace: S.lastPlace }).then(x => { S.settings = x; }).catch(() => {}); };
+    const save = () => { if (S.lastPlace) api.setSettings({ lastPlace: S.lastPlace, lastPlaces: placesWith(S.lastPlace) }).then(x => { S.settings = x; }).catch(() => {}); };
     if (now) save(); else S.lastPlaceT = setTimeout(save, 4000);
   }
   // put the cursor back at a text position and bring it into view
@@ -2023,7 +2033,15 @@
       // read the clipboard's text ourselves, like Google Docs. The Mac app gets it from its Edit menu instead.
       if (e.metaKey && document.documentElement.classList.contains('web') && navigator.clipboard && navigator.clipboard.readText) {
         e.preventDefault();
-        navigator.clipboard.readText().then(t => { if (!t) return; S.plainPaste = true; restoreRange(); return pasteContent({ text: t }); })
+        // the formatted copy if the browser gives it (so italics stay), else the text
+        const readBoth = async () => {
+          try {
+            if (navigator.clipboard.read) for (const it of await navigator.clipboard.read()) if (it.types.includes('text/html'))
+              return { html: await (await it.getType('text/html')).text(), text: it.types.includes('text/plain') ? await (await it.getType('text/plain')).text() : '' };
+          } catch {}
+          return { text: await navigator.clipboard.readText() };
+        };
+        readBoth().then(c => { if (!c.html && !c.text) return; S.plainPaste = true; restoreRange(); return pasteContent(c); })
           .catch(() => toast('Your browser didn’t let Unwip read the clipboard. Paste normally, then use Clear formatting on the pasted text, or allow clipboard access for this site in your browser settings.', '', 7000));
         return;
       }
@@ -2401,13 +2419,17 @@
     S.plainPaste = false;
     const st = S.project.style;
     // Some apps (e.g. Scrivener) only offer RTF; read it straight from the system clipboard if needed
-    if (!plain && !html && !rtf) {
+    if (!html && !rtf) {
       try { const c = await api.clipboardRead(); rtf = c.rtf || ''; if (!html) html = c.html || ''; } catch {}
     }
-    if (!plain && !html && rtf) html = window.FolioRTF.toHTML(rtf);
-    let clean = plain || !html
+    if (!html && rtf) html = window.FolioRTF.toHTML(rtf);
+    // Paste matching manuscript style reads the same formatted copy as a normal paste, then leaves out its fonts, sizes
+    // and colours, so the words take the book's style and keep their italics, bold and underline, and the paragraphs
+    // and empty lines come out the same as a normal paste (beta, 3 Nov: it took the plain text only, so a paragraph
+    // that went through Google Docs lost its italics, bold and spacing)
+    let clean = !html
       ? Clip.textToHTML(text)
-      : Clip.cleanPaste(html, { docFont: st.font, docSize: st.size, dropFonts: false });
+      : Clip.cleanPaste(html, { docFont: st.font, docSize: st.size, dropFonts: false, ...(plain ? { plainRuns: true, dropColors: true } : {}) });
     // empty lines used as spacing come out (Manuscript style does the spacing), unless this book keeps them
     let offer = null;
     if (/<\/p>[\s\S]*<p/i.test(clean) && st.blankLines !== 'keep') {
@@ -3279,7 +3301,7 @@
     const body = document.createElement('div');
     body.innerHTML = `
       <nav class="set-jump" aria-label="Settings sections"></nav>
-      <div class="form-grid">
+      <div class="form-grid set-grid">
         <div class="section-label">You</div>
         <div class="field"><label>Author name (used on title pages and e-books)</label><input type="text" id="g-author" value="${esc(cfg.author || '')}" placeholder="e.g. Ima Novelist"></div>
         <div class="field"><label>Daily writing goal (all books)</label><input type="number" id="g-daily" min="0" step="50" value="${cfg.dailyGoal || ''}" placeholder="e.g. 1000"></div>
@@ -3287,40 +3309,37 @@
         <label class="check full"><input type="checkbox" id="g-impguide" ${cfg.importGuide !== false ? 'checked' : ''}> Guide me through imports, one step at a time</label>
         <label class="check full"><input type="checkbox" id="g-quotes" ${cfg.quotes !== false ? 'checked' : ''}> Show quotes from writers (front page, writer mode, sprints, goals)</label>
         <div class="section-label">Appearance</div>
-        <div class="field"><label>Theme and colours</label><button class="btn" id="s-themes" type="button">Themes &amp; colours…</button></div>
-        <label class="check full"><input type="checkbox" id="g-binderauto" ${(window.UnwipSide && window.UnwipSide.binderAuto()) ? 'checked' : ''}> Hide the left panel while Revise or the side panel is open <span class="hint" style="display:inline">(it comes back when you close them)</span></label>
-        <div class="field"><label>Typing feel</label><button class="btn" id="s-typing" type="button">Typewriter &amp; animations…</button></div>
-        <div class="field full"><label>Fonts</label><div class="set-row"><button class="btn" id="s-bookfont" type="button">Font for the whole book…</button><button class="btn" id="s-import" type="button">Import font files…</button></div>
+        <div class="field full"><div class="set-row"><button class="btn" id="s-themes" type="button">Themes &amp; colours…</button><button class="btn" id="s-typing" type="button">Typewriter &amp; animations…</button></div>
+          <div class="set-row" style="margin-top:8px"><button class="btn" id="s-bookfont" type="button">Font for the whole book…</button><button class="btn" id="s-import" type="button">Import font files…</button></div>
           <div class="hint">The font while you write: side panel › Style (or the font box in the toolbar). Fonts for print: Export › Preview › Paperback (Book design).</div></div>
+        <label class="check full"><input type="checkbox" id="g-binderauto" ${(window.UnwipSide && window.UnwipSide.binderAuto()) ? 'checked' : ''}> <span>Hide the left panel while Revise or the side panel is open <span class="hint" style="display:inline;margin:0">(it comes back when you close them)</span></span></label>
         <div class="section-label">Name suggestions</div>
         <label class="check"><input type="checkbox" id="s-ac" ${acPrefs().on ? 'checked' : ''}> Suggest character, place and item names as I type</label>
         <div class="field"><label>Start suggesting after</label><select id="s-acmin">${opt([[2, '2 letters'], [3, '3 letters'], [4, '4 letters']], acPrefs().min)}</select></div>
         <div class="section-label">Language &amp; spelling</div>
         ${api.web ? `<div class="field full"><label>Spelling language</label><div class="hint" style="padding-top:4px">${(/iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) ? 'Your iPhone or iPad checks spelling in the languages of its keyboards, and Unwip can’t change that. To check another language, add its keyboard: Settings › General › Keyboard › Keyboards › Add New Keyboard, then switch to it with the 🌐 key while you write.' : 'This browser checks spelling in your device’s languages. Add a language in your device or browser settings to check it too.'}</div></div>` : `<div class="field"><label>Spelling language</label>${sp.available.length ? `<select id="s-lang">${spellOptions(sp)}</select>` : `<div style="padding-top:8px;color:var(--muted)">${api.platform === 'darwin' ? 'Uses your Mac’s spelling languages (System Settings › Keyboard › Text Input)' : 'Uses your Windows language settings'}</div>`}</div>
-        <div class="field"><label>Custom dictionary</label><button class="btn" id="s-dict" type="button">Manage added words…</button></div>`}
+        <div class="field"><label>&nbsp;</label><button class="btn" id="s-dict" type="button">Added words…</button></div>`}
         <label class="check full"><input type="checkbox" id="s-dash" ${smartDash() ? 'checked' : ''}> Turn two hyphens (--) into an em dash (—) as I type</label>
         <label class="check full"><input type="checkbox" id="s-spell" ${sp.enabled ? 'checked' : ''}> Underline spelling mistakes</label>
-        <div class="section-label">Autocorrect <span class="sl-now">· applies straight away</span></div>
+        <div class="section-label">Autocorrect <span class="sl-now">saves straight away</span></div>
         <div class="field full" id="s-autocorrect">${window.UnwipAutocorrect ? window.UnwipAutocorrect.settingsHTML() : ''}</div>
-        <div class="section-label">LitRPG and text shortcuts <span class="sl-now">· applies straight away</span></div>
+        <div class="section-label">LitRPG and text shortcuts <span class="sl-now">saves straight away</span></div>
         <div class="field full" id="s-litrpg"></div>
-        <div class="section-label">Licence <span class="sl-now">· applies straight away</span></div>
+        <div class="section-label">Licence <span class="sl-now">saves straight away</span></div>
         <div class="field full" id="s-licence"></div>
         <div class="section-label">Help</div>
-        <div class="field"><label>New here, or showing someone?</label><button class="btn" id="g-intro" type="button">Welcome setup…</button></div>
-        <div class="field"><label>A quick look around a book</label><button class="btn" id="g-tour" type="button">Take the tour</button></div>
-        <div class="field"><label>What everything does, and keyboard shortcuts</label><button class="btn" id="g-help" type="button">Open Help (F1)</button></div>
+        <div class="field full"><div class="set-row"><button class="btn" id="g-intro" type="button">Welcome setup…</button><button class="btn" id="g-tour" type="button">Take the tour</button><button class="btn" id="g-help" type="button">Help &amp; shortcuts<span class="pc-only"> (F1)</span></button></div></div>
         <div class="section-label">What’s new</div>
         <div class="field full" id="s-news"></div>
 <div class="pc-only">        <div class="section-label">Updates</div>
         <label class="check"><input type="checkbox" id="g-autoup" ${cfg.autoUpdate !== false ? 'checked' : ''}> Install updates automatically</label>
         <div class="field"><label id="g-version">Unwip</label><button class="btn" id="g-checkup" type="button">Check for updates now</button></div>
 </div>
-        <div class="section-label">Where your books live <span class="sl-now">· applies straight away</span></div>
+        <div class="section-label">Where your books live <span class="sl-now">saves straight away</span></div>
         <div class="field full" id="s-lib"><label>Loading…</label></div>
-        <div class="section-label">Extra backup copy <span class="sl-now">· applies straight away</span></div>
+        <div class="section-label">Extra backup copy <span class="sl-now">saves straight away</span></div>
         <div class="field full" id="s-extra"></div>
-<div class="pc-only">        <div class="section-label">Recordings and videos <span class="sl-now">· applies straight away</span></div>
+<div class="pc-only">        <div class="section-label">Recordings and videos <span class="sl-now">saves straight away</span></div>
         <div class="field full" id="s-rec"></div></div>
       </div>`;
     // a row of section names at the top: every setting stays on the one page, this only jumps to it

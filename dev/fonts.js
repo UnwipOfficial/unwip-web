@@ -137,6 +137,28 @@ window.FolioFonts = (function () {
     return WINDOWS_CORE.includes(family) || measured(family);
   }
 
+  // The nearest font Unwip has built in, as a backup for pasted words whose font this device may not have (owner,
+  // 3 Nov: words copied from another app keep their own font's name, and where it isn't installed they show in the
+  // closest match instead of the browser's default). Known families by name, then a guess from the name's words.
+  // Returns [built-in font or null, generic family].
+  const NEAR = [
+    [/garamond|sabon|bembo|jenson|caslon|granjon|janson|minion|adobe text|goudy/, 'EB Garamond', 'serif'],
+    [/trajan|cinzel|copperplate|perpetua titling/, 'Cinzel', 'serif'],
+    [/courier|consolas|menlo|monaco|lucida console|source code|fira code|jetbrains|plex mono|typewriter|mono/, 'IBM Plex Mono', 'monospace'],
+    [/baskerville|bookhaven|georgia|charter|cambria|constantia|hoefler|iowan|didot|bodoni|merriweather|athelas/, 'Bookhaven', 'serif'],
+    [/palatino|book antiqua|\blora\b|larkspur|cochin|sylfaen|calisto|century schoolbook|bookman/, 'Larkspur', 'serif'],
+    [/times|crimson|liberation serif|tinos|nimbus roman|cormorant|spectral|source serif|noto serif|pt serif/, 'Crimson Pro', 'serif'],
+    [/oswald|impact|bebas|league gothic|franklin gothic|haettenschweiler|condensed|narrow/, 'Oswald', 'sans-serif'],
+    [/arial|helvetica|calibri|segoe|verdana|tahoma|roboto|open sans|inter\b|avenir|futura|gill sans|trebuchet|lato|montserrat|sans|grotesk|gothic|aptos|seravek|optima/, null, 'sans-serif'],
+    [/script|hand|brush|chancery|zapfino|snell|comic|marker|chalk|noteworthy|bradley/, null, 'cursive'],
+  ];
+  function nearest(family) {
+    const f = String(family || '').toLowerCase();
+    if (!f) return [null, 'serif'];
+    for (const [re, own, generic] of NEAR) if (re.test(f)) return [own && own.toLowerCase() === f ? null : own, generic];
+    return [null, 'serif'];
+  }
+
   function docsCheck(families) {
     const problems = [];
     for (const f of new Set(families.filter(Boolean))) {
@@ -146,7 +168,7 @@ window.FolioFonts = (function () {
   }
 
   return {
-    FAVOURITES, BUNDLED, alias, external, loadInstalled, loadImported, isAvailable, docsCheck,
+    FAVOURITES, BUNDLED, alias, external, loadInstalled, loadImported, isAvailable, docsCheck, nearest,
     canShow: f => BUNDLED.includes(f) || imported.some(i => i.family === f) || installedHas(f) || measured(f),
     deviceFonts, SAME,
     get imported() { return imported; },

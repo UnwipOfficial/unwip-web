@@ -50,6 +50,12 @@
   }
   function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   function escAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
+  // a pasted font with Unwip's nearest built-in one behind it, then the kind of font it is: the words show in their own
+  // font where the device has it, and in the closest match where it doesn't. Copying them on keeps the first name only.
+  function familyWithBackup(f) {
+    const near = window.FolioFonts && window.FolioFonts.nearest ? window.FolioFonts.nearest(f) : [null, 'serif'];
+    return [quoteFamily(f), near[0] && `'${near[0]}'`, near[1]].filter(Boolean).join(', ');
+  }
   function quoteFamily(f) { if (window.FolioFonts) f = window.FolioFonts.external(f); return /^[\w-]+$/.test(f) ? f : `'${f.replace(/'/g, '')}'`; }
 
   // ---- read: any HTML -> blocks/runs -------------------------------------
@@ -265,7 +271,7 @@
       if (r.italic) h = `<i>${h}</i>`;
       if (r.bold) h = `<b>${h}</b>`;
       const css = [];
-      if (r.font && !opts.dropFonts && !opts.plainRuns && r.font !== opts.docFont) css.push(`font-family: ${quoteFamily(r.font)}`);
+      if (r.font && !opts.dropFonts && !opts.plainRuns && r.font !== opts.docFont) css.push(`font-family: ${familyWithBackup(r.font)}`);
       if (r.size && !opts.dropFonts && !opts.plainRuns && r.size !== opts.docSize) css.push(`font-size: ${r.size}pt`);
       if (r.color && !opts.dropColors && !opts.plainRuns) css.push(`color: ${r.color}`);
       if (r.bg && !opts.dropColors) css.push(`background-color: ${r.bg}`);
