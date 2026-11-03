@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.48.3";
-window.UNWIP_LATEST_NOTES = "- Record on PC and Mac: where videos and reports are saved is now at the bottom of the Record window and in Settings \u203a Recordings and videos, so you can change it before you've made a single recording. Before, it was only in the recordings list, which doesn't open until there's a replay.";
+window.UNWIP_VERSION = "0.48.4";
+window.UNWIP_LATEST_NOTES = "- PC: cutting a line and pasting it into another paragraph keeps your book's font. Lines already pasted that lost it are mended when you open the chapter.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;

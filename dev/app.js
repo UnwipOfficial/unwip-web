@@ -1489,6 +1489,9 @@
     if (S.docId !== id) return;
     showEmpty(false);
     editor.innerHTML = html || '<p><br></p>';
+    // words pasted before the 3 Nov fix still carry the page's copied styles: they come off as the chapter opens
+    // (and the chapter is saved so), and spans left with nothing go
+    if (scrubLeakedStyles()) { for (const sp of $$('span', editor)) if (!sp.getAttribute('style') && !sp.className) sp.replaceWith(...sp.childNodes); S.dirty = true; }
     S.loadedHTML = editor.innerHTML;
     if (kept != null) S.dirty = true;
     resyncWords();
@@ -1875,7 +1878,25 @@
       } else el.style.fontSize = pt + 'pt';
     }
   }
+  // Styles the browser copied from the page itself onto words (beta, 3 Nov: cut a line and paste it into another
+  // paragraph and the PC's engine wrote the page's own settings onto it, Unwip's internal names and all, e.g.
+  // font-family: var(--doc-font…), so the words lost the book's font and the font box showed "var(--doc-fo…").
+  // Unwip never puts those names into your text, so any setting that uses them, or is empty, comes off.
+  // Returns how many were taken off.
+  function scrubLeakedStyles(root = editor) {
+    let n = 0;
+    for (const el of root.querySelectorAll('[style]')) {
+      const st = el.style, drop = [];
+      for (let i = 0; i < st.length; i++) { const p = st[i], v = st.getPropertyValue(p); if (!v.trim() || /var\(\s*--/.test(v)) drop.push(p); }
+      // a whole family written as one quoted name ("var(--doc-font, …)") reads as a font called that
+      if (/var\(\s*--/.test(el.getAttribute('style') || '') && !drop.length) drop.push('font-family');
+      for (const p of drop) { st.removeProperty(p); n++; }
+      if (!(el.getAttribute('style') || '').trim()) el.removeAttribute('style');
+    }
+    return n;
+  }
   function cleanEmptySpans() {
+    scrubLeakedStyles();
     for (const s of $$('span', editor)) {
       if (!s.getAttribute('style') && !s.className) s.replaceWith(...s.childNodes);
       else if (!s.textContent && !s.querySelector('br')) s.remove();
