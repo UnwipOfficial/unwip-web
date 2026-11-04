@@ -11,7 +11,6 @@ window.ICONS = (function () {
     caretDown: svg('<path d="M6 9l6 6 6-6"/>'),
     comment: svg('<path d="M20 14a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 12h5"/>'),
     footnote: svg('<path d="M4 7h9M4 12h9M4 17h6"/><path d="M17 5.5l2-1.5v6"/><path d="M16 20h6"/>'),
-    lifebuoy: svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M5.6 5.6l3.6 3.6M14.8 14.8l3.6 3.6M18.4 5.6l-3.6 3.6M9.2 14.8l-3.6 3.6"/>'),
     check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
     steps: svg('<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2"/><circle cx="5" cy="18" r="1"/>'),
     back: svg('<path d="M15 18l-6-6 6-6"/>'),

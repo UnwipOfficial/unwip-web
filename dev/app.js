@@ -586,6 +586,7 @@
   function iconHTML(n, fallback) {
     if (!n.icon) return fallback;
     if (I[n.icon] && /^[a-zA-Z]+$/.test(n.icon)) return I[n.icon];
+    if (/^[a-zA-Z]+$/.test(n.icon)) return fallback;   // a line icon this version doesn't have (lifebuoy, removed 5 Nov): the usual icon, not its name
     return `<span class="tr-emoji">${esc(n.icon)}</span>`;
   }
   // the icon chooser: returns { icon } ('' = default) or null if cancelled
