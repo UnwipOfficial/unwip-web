@@ -207,6 +207,16 @@ window.UnwipCommand = (function () {
       else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
     });
     back.addEventListener('mousedown', e => { if (e.target === back) close(); });
+    // iPad and iPhone (5 Nov): a swipe on the results moved the whole screen, not the list. A swipe outside the list
+    // never moves anything, and one in the list that it can't scroll any further stops at its end.
+    let ty = 0;
+    back.addEventListener('touchstart', e => { ty = e.touches[0] ? e.touches[0].clientY : 0; }, { passive: true });
+    back.addEventListener('touchmove', e => {
+      const y = e.touches[0] ? e.touches[0].clientY : ty, dy = y - ty; ty = y;
+      if (!list.contains(e.target)) { if (e.cancelable && !(e.target.closest && e.target.closest('input'))) e.preventDefault(); return; }
+      const top = list.scrollTop <= 0, end = list.scrollTop + list.clientHeight >= list.scrollHeight - 1;
+      if (e.cancelable && ((dy > 0 && top) || (dy < 0 && end))) e.preventDefault();
+    }, { passive: false });
     draw(); q.focus(); q.select();
   }
   function close() { if (!back) return; back.remove(); back = null; }

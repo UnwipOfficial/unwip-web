@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.48.6";
-window.UNWIP_LATEST_NOTES = "- Writing history has a Copy\u2026 button. Copy your words by day as a list for a message or Discord, a table that pastes into Excel or Google Sheets as columns, or a picture of the grid with your totals. Pick this week, this month, the last 12 months, a year or your own dates. Only dates and numbers are copied; your books are named only if you tick Split by book. On an iPhone or iPad, Share\u2026 sends it straight to Messages, Notes or another app, and on a PC or Mac Save as file\u2026 keeps it as a spreadsheet file.";
+window.UNWIP_VERSION = "0.48.7";
+window.UNWIP_LATEST_NOTES = "- iPad and iPhone: in Ctrl+K (Find anything), swiping the results now scrolls the list. Before, it could move the whole screen instead. The box also fits above the keyboard's bar, so nothing hides under it.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;

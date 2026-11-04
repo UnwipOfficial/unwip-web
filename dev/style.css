@@ -1745,12 +1745,13 @@ body.detailed span.tb-detailed { display: inline-block; }
 .ex-note { margin: 4px 12px 8px; color: var(--muted); font-size: 12.5px; }
 
 /* Find anything (Ctrl+K) */
-.cmdk-back { position: fixed; inset: 0; z-index: 870; background: rgba(20, 18, 14, .32); display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; animation: fade .1s ease-out; }
-.cmdk { width: min(600px, calc(100vw - 32px)); background: var(--paper); border-radius: 14px; box-shadow: 0 24px 70px rgba(0,0,0,.3); overflow: hidden; display: flex; flex-direction: column; max-height: 70vh; }
-.cmdk-in { display: flex; align-items: center; gap: 10px; height: 58px; padding: 0 18px; border-bottom: 1px solid var(--line); color: var(--muted); }
+.cmdk-back { position: fixed; inset: 0; z-index: 870; background: rgba(20, 18, 14, .32); display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; animation: fade .1s ease-out; overscroll-behavior: contain; }
+/* fitted to the part of the screen you can see (an iPad's keyboard or its bar doesn't shrink the page: --vv-h, mobile.js) */
+.cmdk { width: min(600px, calc(100vw - 32px)); background: var(--paper); border-radius: 14px; box-shadow: 0 24px 70px rgba(0,0,0,.3); overflow: hidden; display: flex; flex-direction: column; max-height: min(70vh, calc(var(--vv-h, 100vh) * .86 - 12vh)); }
+.cmdk-in { flex: none; display: flex; align-items: center; gap: 10px; height: 58px; padding: 0 18px; border-bottom: 1px solid var(--line); color: var(--muted); }
 .cmdk-in svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .cmdk-in input { flex: 1; border: 0; outline: none; background: transparent; font: 17px var(--ui); color: var(--text); }
-.cmdk-list { overflow: auto; padding: 6px; }
+.cmdk-list { overflow: auto; padding: 6px; flex: 1 1 auto; min-height: 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }   /* a swipe scrolls the list, never the page behind */
 .cmdk-grp { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); padding: 10px 12px 4px; }
 .cmdk-item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 42px; padding: 6px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: 14px var(--ui); text-align: left; cursor: pointer; }
 .cmdk-item.on { background: var(--accent-soft); }
@@ -1760,7 +1761,7 @@ body.detailed span.tb-detailed { display: inline-block; }
 .cmdk-t b { font-weight: 500; white-space: nowrap; }
 .cmdk-t small { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cmdk-none { padding: 18px; color: var(--muted); margin: 0; }
-.cmdk-foot { display: flex; gap: 16px; padding: 10px 18px; border-top: 1px solid var(--line); background: var(--bg); font-size: 12px; color: var(--muted); }
+.cmdk-foot { flex: none; display: flex; gap: 16px; padding: 10px 18px; border-top: 1px solid var(--line); background: var(--bg); font-size: 12px; color: var(--muted); }
 .cmdk-try { margin-left: auto; }
 @media (max-width: 720px) { .cmdk-try { display: none; } .cmdk-back { padding-top: calc(env(safe-area-inset-top) + 20px); } }
 
