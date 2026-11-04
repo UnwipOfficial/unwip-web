@@ -107,6 +107,7 @@ window.UnwipMobile = (function () {
   const fbar = document.createElement('div'); fbar.className = 'm-fbar';
   fbar.innerHTML = `
     <button data-x="page" class="m-fwide m-fpage" hidden aria-label="Make a page from the selected words">＋ Page</button>
+    <button data-x="dict" class="m-fwide m-fdict" aria-label="Dictate">Dictate</button>
     <button data-c="bold" aria-label="Bold"><b>B</b></button><button data-c="italic" aria-label="Italic"><i>I</i></button>
     <button data-c="underline" aria-label="Underline"><u>U</u></button><button data-c="strikeThrough" aria-label="Strikethrough"><s>S</s></button>
     <span class="m-fsep"></span>
@@ -128,6 +129,7 @@ window.UnwipMobile = (function () {
     else if (b.dataset.x === 'hide') $('#m-done').click();
     else if (b.dataset.x === 'font') toggleFontSheet();
     else if (b.dataset.x === 'page' && window.UnwipPhonePage) window.UnwipPhonePage.open();
+    else if (b.dataset.x === 'dict' && window.UnwipDictate) window.UnwipDictate.toggle();
   };
   // Aa: font and size for the selected words (or what you type next), in a sheet above the keyboard row
   const fsheet = document.createElement('div'); fsheet.className = 'm-fsheet'; fsheet.hidden = true;

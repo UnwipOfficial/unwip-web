@@ -15,7 +15,8 @@ window.UnwipProof = (function () {
   // An event is [t (ms from the session start), doc id, kind, position, characters removed, text inserted, duration]
   // kinds: b = the chapter as it was when recording began, r = the chapter had changed while not being watched,
   //        t = typed, e = erased with the keyboard, p = pasted, d = dropped in, c = cut, u = undo/redo,
-  //        x = changed by one of Unwip's tools (find & replace and the like)
+  //        x = changed by one of Unwip's tools (find & replace and the like),
+//        v = said aloud: written while Dictate was on (the device's own dictation, or typing in that stretch)
   function pfPrep(sessions, gap) {
     const GAP = gap || 3000, ev = [], titles = {};
     let vt = 0, prevEnd = null;
@@ -37,23 +38,24 @@ window.UnwipProof = (function () {
   }
   function pfWords(s) { return (String(s).match(/[A-Za-z0-9À-ɏЀ-ӿ']+/g) || []).length; }
   function pfStats(sessions) {
-    const all = { typedWords: 0, typedChars: 0, pastedWords: 0, pastedChars: 0, pastes: [], erased: 0, tools: 0, toolChars: 0, resync: 0, active: 0, sessions: [] };
+    const all = { typedWords: 0, typedChars: 0, saidWords: 0, saidChars: 0, pastedWords: 0, pastedChars: 0, pastes: [], erased: 0, tools: 0, toolChars: 0, resync: 0, active: 0, sessions: [] };
     sessions.slice().sort((a, b) => a.started - b.started).forEach(s => {
-      const r = { id: s.id, started: s.started, ended: s.started, device: s.device || '', active: 0, typedWords: 0, typedChars: 0, pastedWords: 0, pastedChars: 0, pastes: 0, erased: 0, tools: 0, resync: 0, docs: {} };
-      let prevEnd = null, typed = '', lastDoc = null, lastEnd = -1;
+      const r = { id: s.id, started: s.started, ended: s.started, device: s.device || '', active: 0, typedWords: 0, typedChars: 0, saidWords: 0, saidChars: 0, pastedWords: 0, pastedChars: 0, pastes: 0, erased: 0, tools: 0, resync: 0, docs: {} };
+      let prevEnd = null, typed = '', lastDoc = null, lastEnd = -1, said = '', sDoc = null, sEnd = -1;
       for (const e of s.ev || []) {
         const at = s.started + e[0], dur = e[6] || 0, k = e[2], ins = e[5] || '';
         if (prevEnd != null) r.active += Math.min(Math.max(0, at - prevEnd), 120000);
         r.active += dur; prevEnd = at + dur; r.ended = Math.max(r.ended, at + dur);
         if (k !== 'b') r.docs[e[1]] = 1;
         if (k === 't') { r.typedChars += ins.length; typed += (e[1] === lastDoc && e[3] === lastEnd ? '' : ' ') + ins; lastDoc = e[1]; lastEnd = e[3] + ins.length; r.erased += e[4]; }
+        else if (k === 'v') { r.saidChars += ins.length; said += (e[1] === sDoc && e[3] === sEnd ? '' : ' ') + ins; sDoc = e[1]; sEnd = e[3] + ins.length; r.erased += e[4]; }
         else if (k === 'e' || k === 'c') r.erased += e[4];
         else if (k === 'p' || k === 'd') { r.pastes++; r.pastedChars += ins.length; r.pastedWords += pfWords(ins); all.pastes.push({ at: at, doc: e[1], chars: ins.length, words: pfWords(ins), kind: k, preview: ins.slice(0, 160) }); }
         else if (k === 'x') { r.tools++; all.toolChars += ins.length; }
         else if (k === 'r') r.resync++;
       }
-      r.typedWords = pfWords(typed);
-      ['typedWords', 'typedChars', 'pastedWords', 'pastedChars', 'erased', 'resync', 'active'].forEach(f => all[f] += r[f]);
+      r.typedWords = pfWords(typed); r.saidWords = pfWords(said);
+      ['typedWords', 'typedChars', 'saidWords', 'saidChars', 'pastedWords', 'pastedChars', 'erased', 'resync', 'active'].forEach(f => all[f] += r[f]);
       all.tools += r.tools; r.chapters = Object.keys(r.docs).length;
       all.sessions.push(r);
     });
@@ -85,13 +87,16 @@ window.UnwipProof = (function () {
   // a player in any element: play / pause, speed, a slider through the whole replay, the chapter and the time
   function pfPlayer(root, sessions, F) {
     const data = F.pfPrep(sessions), ev = data.ev;
-    root.innerHTML = '<div class="pf-top"><b class="pf-ch"></b><span class="pf-when"></span><span class="pf-wc"></span></div>' +
+    const saidAny = ev.some(function (x) { return x.k === 'v'; });
+    root.innerHTML = '<div class="pf-top"><b class="pf-ch"></b><span class="pf-when"></span><span class="pf-said" hidden>Dictated</span><span class="pf-wc"></span></div>' +
       '<div class="pf-page"><div class="pf-text"></div></div>' +
       '<div class="pf-ctrl"><button class="pf-play" type="button">▶ Play</button><select class="pf-speed"><option value="1">1×</option><option value="4">4×</option><option value="16" selected>16×</option><option value="64">64×</option><option value="256">256×</option></select>' +
-      '<input class="pf-seek" type="range" min="0" max="1000" value="0"><span class="pf-time"></span></div>' +
-      '<div class="pf-legend"><span><i class="pf-key pf-t"></i>typed</span><span><i class="pf-key pf-p"></i>pasted or dropped in</span><span><i class="pf-key pf-x"></i>changed by an Unwip tool</span><span class="pf-note">Pauses longer than 3 seconds are shortened.</span></div>';
+      '<span class="pf-seekbox"><input class="pf-seek" type="range" min="0" max="1000" value="0"><span class="pf-strip"></span></span><span class="pf-time"></span></div>' +
+      '<div class="pf-legend"><span><i class="pf-key pf-t"></i>typed</span>' + (saidAny ? '<span><i class="pf-key pf-v"></i>dictated</span>' : '') + '<span><i class="pf-key pf-p"></i>pasted or dropped in</span><span><i class="pf-key pf-x"></i>changed by an Unwip tool</span><span class="pf-note">Pauses longer than 3 seconds are shortened.</span></div>';
     const q = c => root.querySelector(c);
     if (!ev.length) { q('.pf-text').innerHTML = '<p>Nothing was written while this was recording.</p>'; return { stop: function () {} }; }
+    // the stretches written while Dictate was on, under the slider
+    if (saidAny) q('.pf-strip').innerHTML = ev.filter(function (x) { return x.k === 'v'; }).map(function (x) { return '<i style="left:' + (100 * x.vt / Math.max(1, data.total)).toFixed(2) + '%;width:' + Math.max(0.4, 100 * x.dur / Math.max(1, data.total)).toFixed(2) + '%"></i>'; }).join('');
     const KF = []; { const d = {}; for (let i = 0; i < ev.length; i++) { if (i % 400 === 0) KF.push({ i: i, docs: Object.assign({}, d) }); F.pfApply(d, ev[i]); } }
     let docs = {}, i = 0, vnow = 0, playing = false, last = 0, raf = 0;
     const fmtT = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
@@ -105,7 +110,7 @@ window.UnwipProof = (function () {
     function draw() {
       const e = i < ev.length && ev[i].vt <= vnow ? ev[i] : ev[Math.max(0, i - 1)];
       let text, pos, len = 0, kind = e.k === 'd' ? 'p' : e.k;
-      if (e === ev[i] && e.k === 't' && e.dur) {           // part-way through a run of typing
+      if (e === ev[i] && (e.k === 't' || e.k === 'v') && e.dur) {           // part-way through a run of typing (or of dictation)
         const n = Math.ceil(e.ins.length * Math.min(1, (vnow - e.vt) / e.dur)), t = docs[e.doc] || '';
         text = t.slice(0, e.pos) + e.ins.slice(0, n) + t.slice(e.pos + e.del); pos = e.pos + n;
       } else {
@@ -116,6 +121,7 @@ window.UnwipProof = (function () {
       }
       q('.pf-text').innerHTML = F.pfView(text, pos, len, kind);
       q('.pf-ch').textContent = data.titles[e.doc] || 'Chapter';
+      q('.pf-said').hidden = e.k !== 'v';
       q('.pf-when').textContent = new Date(e.at).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
       q('.pf-wc').textContent = F.pfWords(text).toLocaleString() + ' words';
       q('.pf-seek').value = String(Math.round(1000 * vnow / Math.max(1, data.total)));
@@ -159,7 +165,7 @@ window.UnwipProof = (function () {
     const s = R.sess, L = s.ev[s.ev.length - 1];
     // keep the file small: a run of typing (or of backspacing) in one place is stored as one change
     if (L && L[1] === e[1] && L[2] === e[2] && e[0] - (L[0] + (L[6] || 0)) < 2000) {
-      if (e[2] === 't' && L[4] === 0 && e[4] === 0 && e[3] === L[3] + L[5].length) { L[5] += e[5]; L[6] = e[0] - L[0]; R.dirty = true; return; }
+      if ((e[2] === 't' || e[2] === 'v') && L[4] === 0 && e[4] === 0 && e[3] === L[3] + L[5].length) { L[5] += e[5]; L[6] = e[0] - L[0]; R.dirty = true; return; }
       if (e[2] === 'e' && !e[5] && !L[5] && e[3] + e[4] === L[3]) { L[3] = e[3]; L[4] += e[4]; L[6] = e[0] - L[0]; R.dirty = true; return; }
     }
     s.ev.push(e); R.dirty = true;
@@ -201,9 +207,11 @@ window.UnwipProof = (function () {
     let kind = (Date.now() - R.kindAt < 600 && R.kind) || 'x';
     if (kind === 't' && ins.length > R.data.length + 3) kind = 'x';       // more appeared than was typed: one of Unwip's tools
     if (kind === 'e' && ins.length) kind = 'x';
+    // while Dictate is on, new words came from the device's dictation (which often puts in a whole phrase at once)
+    if ((kind === 't' || kind === 'x') && ins.length && window.UnwipDictate && window.UnwipDictate.on) kind = 'v';
     push([Date.now() - R.sess.started, id, kind, p, del, ins, 0]);
     R.last[id] = b; R.lastAt = Date.now();
-    if (kind !== 't' && kind !== 'e') { R.kind = null; R.kindAt = 0; }
+    if (kind !== 't' && kind !== 'e' && kind !== 'v') { R.kind = null; R.kindAt = 0; }
   }
   async function flush() {
     if (!R.sess || !R.dirty || !R.slug) return;
@@ -384,7 +392,9 @@ window.UnwipProof = (function () {
     return out.sort((a, b) => a.started - b.started);
   }
   const dur = ms => { const m = Math.round(ms / 60000); if (!m) return 'under a minute'; return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
-  const share = st => { const t = st.typedWords + st.pastedWords; return t ? Math.round(100 * st.typedWords / t) : 100; };
+  // typed or dictated: both are the writer's own words as they came, only pasting is set apart
+  const share = st => { const own = st.typedWords + (st.saidWords || 0), t = own + st.pastedWords; return t ? Math.round(100 * own / t) : 100; };
+  const shareLabel = st => st.saidWords ? 'of new words typed or dictated' : 'of new words typed';
   async function recordings() {
     await flush();
     const sessions = await loadSessions(S.slug);
@@ -394,12 +404,13 @@ window.UnwipProof = (function () {
     body.innerHTML = `
       <div class="pf-sum">
         <div><b>${fmt(st.typedWords)}</b><span>words typed</span></div>
+        ${st.saidWords ? `<div><b>${fmt(st.saidWords)}</b><span>words dictated</span></div>` : ''}
         <div><b>${fmt(st.pastedWords)}</b><span>words pasted (${st.pastes.length} paste${st.pastes.length === 1 ? '' : 's'})</span></div>
-        <div><b>${share(st)}%</b><span>of new words typed</span></div>
+        <div><b>${share(st)}%</b><span>${shareLabel(st)}</span></div>
         <div><b>${dur(st.active)}</b><span>writing time, ${st.sessions.length} session${st.sessions.length === 1 ? '' : 's'}</span></div>
       </div>
-      <table class="pf-table"><thead><tr><th>When</th><th>Writing time</th><th>Typed</th><th>Pasted</th><th>Chapters</th><th></th></tr></thead><tbody>
-      ${st.sessions.map((r, j) => `<tr><td>${new Date(r.started).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}<small>${esc(r.device)}</small></td><td>${dur(r.active)}</td><td>${fmt(r.typedWords)} words</td><td>${r.pastes ? `${fmt(r.pastedWords)} words (${r.pastes})` : '–'}</td><td>${r.chapters}</td>
+      <table class="pf-table"><thead><tr><th>When</th><th>Writing time</th><th>Typed</th>${st.saidWords ? '<th>Dictated</th>' : ''}<th>Pasted</th><th>Chapters</th><th></th></tr></thead><tbody>
+      ${st.sessions.map((r, j) => `<tr><td>${new Date(r.started).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}<small>${esc(r.device)}</small></td><td>${dur(r.active)}</td><td>${fmt(r.typedWords)} words</td>${st.saidWords ? `<td>${r.saidWords ? fmt(r.saidWords) + ' words' : '–'}</td>` : ''}<td>${r.pastes ? `${fmt(r.pastedWords)} words (${r.pastes})` : '–'}</td><td>${r.chapters}</td>
         <td class="pf-acts"><button class="btn small" data-play="${j}">▶ Play</button><button class="btn small" data-vid="${j}" title="Save this session as a video, at real speed or faster">🎬 Video</button><button class="icon-btn small" data-del="${j}" title="Delete this recording">✕</button></td></tr>`).join('')}
       </tbody></table>
       ${st.resync ? `<p class="pf-small">${st.resync} time${st.resync === 1 ? '' : 's'} a chapter had changed while Replay wasn’t watching it (written with Replay off, in another window or on another device); the replay jumps to the new text there and the report says so.</p>` : ''}`;
@@ -470,19 +481,19 @@ window.UnwipProof = (function () {
     const data = JSON.stringify(sessions);
     let fp = '';
     try { const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data)); fp = [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join(''); } catch {}
-    const row = r => `<tr><td>${new Date(r.started).toLocaleString()}<br><small>${esc(r.device)}</small></td><td>${dur(r.active)}</td><td>${fmt(r.typedWords)}</td><td>${fmt(r.pastedWords)} (${r.pastes})</td><td>${fmt(r.erased)}</td><td>${r.chapters}</td></tr>`;
+    const row = r => `<tr><td>${new Date(r.started).toLocaleString()}<br><small>${esc(r.device)}</small></td><td>${dur(r.active)}</td><td>${fmt(r.typedWords)}</td>${st.saidWords ? `<td>${fmt(r.saidWords || 0)}</td>` : ''}<td>${fmt(r.pastedWords)} (${r.pastes})</td><td>${fmt(r.erased)}</td><td>${r.chapters}</td></tr>`;
     const titles = Object.assign({}, ...sessions.map(s => s.titles || {}));
     const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Proof of writing: ${esc(title)}</title>
 <style>${REPORT_CSS}</style></head><body><main>
 <p class="brand">unwip · Proof of writing</p>
 <h1>${esc(title)}</h1>
 <p class="sub">A record of how this book was written, made by Unwip as the writing happened. Report saved ${new Date().toLocaleString()}.</p>
-<div class="sum"><div><b>${fmt(st.typedWords)}</b><span>words typed</span></div><div><b>${fmt(st.pastedWords)}</b><span>words pasted or dropped in (${st.pastes.length})</span></div><div><b>${share(st)}%</b><span>of new words were typed</span></div><div><b>${dur(st.active)}</b><span>writing time over ${st.sessions.length} session${st.sessions.length === 1 ? '' : 's'}</span></div></div>
+<div class="sum"><div><b>${fmt(st.typedWords)}</b><span>words typed</span></div>${st.saidWords ? `<div><b>${fmt(st.saidWords)}</b><span>words dictated</span></div>` : ''}<div><b>${fmt(st.pastedWords)}</b><span>words pasted or dropped in (${st.pastes.length})</span></div><div><b>${share(st)}%</b><span>${st.saidWords ? 'of new words were typed or dictated' : 'of new words were typed'}</span></div><div><b>${dur(st.active)}</b><span>writing time over ${st.sessions.length} session${st.sessions.length === 1 ? '' : 's'}</span></div></div>
 <h2>Watch it being written</h2><div id="player" class="pf-root"></div>
-<h2>Sessions</h2><table><thead><tr><th>Started</th><th>Writing time</th><th>Words typed</th><th>Words pasted (pastes)</th><th>Characters deleted</th><th>Chapters</th></tr></thead><tbody>${st.sessions.map(row).join('')}</tbody></table>
+<h2>Sessions</h2><table><thead><tr><th>Started</th><th>Writing time</th><th>Words typed</th>${st.saidWords ? '<th>Words dictated</th>' : ''}<th>Words pasted (pastes)</th><th>Characters deleted</th><th>Chapters</th></tr></thead><tbody>${st.sessions.map(row).join('')}</tbody></table>
 <h2>Every paste</h2>${st.pastes.length ? `<table><thead><tr><th>When</th><th>Chapter</th><th>Size</th><th>Starts with</th></tr></thead><tbody>${st.pastes.map(p => `<tr><td>${new Date(p.at).toLocaleString()}</td><td>${esc(titles[p.doc] || '')}</td><td>${fmt(p.words)} words</td><td class="pv">${esc(p.preview)}${p.chars > 160 ? '…' : ''}</td></tr>`).join('')}</tbody></table>` : '<p>Nothing was pasted or dropped in while recording.</p>'}
 <h2>About this record</h2>
-<p>While Replay was on, Unwip noted every change to the book with the time it happened: what was typed, deleted, pasted or dropped in, and what Unwip’s own tools (like find and replace) changed. Pauses longer than 3 seconds are shortened in the player. ${st.resync ? `${st.resync} time${st.resync === 1 ? '' : 's'}, a chapter had changed while Replay wasn’t watching it (written with Replay off, in another window or on another device); the replay jumps to the new text at those points. ` : ''}</p>
+<p>While Replay was on, Unwip noted every change to the book with the time it happened: what was typed, deleted, pasted or dropped in, and what Unwip’s own tools (like find and replace) changed. Pauses longer than 3 seconds are shortened in the player. ${st.saidWords ? 'Words written while the writer had Dictate switched on are counted as dictated: the device’s own dictation put them in, and the player marks those stretches. ' : ''}${st.resync ? `${st.resync} time${st.resync === 1 ? '' : 's'}, a chapter had changed while Replay wasn’t watching it (written with Replay off, in another window or on another device); the replay jumps to the new text at those points. ` : ''}</p>
 <p>What it shows is how the words arrived on the page. It can’t, by itself, prove who was typing or where ideas came from.</p>
 ${fp ? `<p class="fp">Fingerprint of the recorded data (SHA-256): <code>${fp}</code></p>` : ''}
 </main>
@@ -601,7 +612,7 @@ pfPlayer(document.getElementById('player'), SESSIONS, { pfPrep: pfPrep, pfApply:
       while (i < ev.length && ev[i].vt + ev[i].dur <= vnow) pfApply(docs, ev[i++]);
       const e = i < ev.length && ev[i].vt <= vnow ? ev[i] : ev[Math.max(0, i - 1)];
       let text = docs[e.doc] || '', pos = text.length, len = 0, kind = e.k;
-      if (e === ev[i] && e.k === 't' && e.dur) { const n = Math.ceil(e.ins.length * Math.min(1, (vnow - e.vt) / e.dur)); text = text.slice(0, e.pos) + e.ins.slice(0, n) + text.slice(e.pos + e.del); pos = e.pos + n; }
+      if (e === ev[i] && (e.k === 't' || e.k === 'v') && e.dur) { const n = Math.ceil(e.ins.length * Math.min(1, (vnow - e.vt) / e.dur)); text = text.slice(0, e.pos) + e.ins.slice(0, n) + text.slice(e.pos + e.del); pos = e.pos + n; }
       else if (e.k !== 'b' && e.k !== 'r') { pos = e.pos + e.ins.length; len = e.ins.length; }
       // page
       g.fillStyle = paper; g.fillRect(0, 0, W, H);
@@ -625,6 +636,11 @@ pfPlayer(document.getElementById('player'), SESSIONS, { pfPrep: pfPrep, pfApply:
       g.fillStyle = '#7a746a'; g.font = `${tall ? 30 : 24}px system-ui, sans-serif`;
       g.fillText(`${pfWords(text).toLocaleString()} words`, PAD, H - (tall ? 120 : 70));
       const tag = 'Written in Unwip'; g.fillText(tag, W - PAD - g.measureText(tag).width, H - (tall ? 120 : 70));
+      if (e.k === 'v') {   // a stretch written with Dictate on
+        g.font = `600 ${tall ? 28 : 22}px system-ui, sans-serif`; const lbl = 'Dictated', bw = g.measureText(lbl).width + 36, bh = tall ? 50 : 40, bx = W - PAD - bw, by = tall ? 88 : 62;
+        g.fillStyle = '#c2185b'; g.beginPath(); if (g.roundRect) g.roundRect(bx, by, bw, bh, bh / 2); else g.rect(bx, by, bw, bh); g.fill();
+        g.fillStyle = '#fff'; g.fillText(lbl, bx + 18, by + bh * 0.68);
+      }
       $('.pf-bar i', prog).style.width = Math.round(100 * fr / frames) + '%';
       if (fast) {
         // the frame goes in with its own time; drawing runs ahead as fast as the encoder keeps up
@@ -761,7 +777,12 @@ ${PLAYER_CSS()}`;
 .pf-seek{flex:1;min-width:140px;accent-color:var(--accent)} .pf-time{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .pf-legend{display:flex;gap:16px;flex-wrap:wrap;padding:0 16px 10px;font-size:12px;color:var(--muted)}
 .pf-key{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid var(--line)}
-.pf-key.pf-p{background:rgba(238,96,56,.35)} .pf-key.pf-x{background:rgba(52,82,138,.25)} .pf-key.pf-t{background:var(--paper)} .pf-note{margin-left:auto}`; }
+.pf-key.pf-p{background:rgba(238,96,56,.35)} .pf-key.pf-x{background:rgba(52,82,138,.25)} .pf-key.pf-t{background:var(--paper)} .pf-key.pf-v{background:#c2185b;border-color:#c2185b} .pf-note{margin-left:auto}
+.pf-said{font-size:12px;font-weight:600;color:#fff;background:#c2185b;border-radius:999px;padding:2px 10px}
+.pf-said[hidden]{display:none}
+.pf-seekbox{flex:1;min-width:140px;display:flex;flex-direction:column;gap:3px} .pf-seekbox .pf-seek{width:100%;min-width:0}
+.pf-strip{position:relative;height:5px;border-radius:3px;background:var(--line);overflow:hidden} .pf-strip:empty{display:none}
+.pf-strip i{position:absolute;top:0;bottom:0;background:#c2185b}`; }
   // the app's own copy of the player styles
   { const st = document.createElement('style'); st.textContent = PLAYER_CSS().replace(/var\(--ink\)/g, 'var(--text)'); document.head.appendChild(st); }
 

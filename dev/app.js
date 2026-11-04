@@ -2109,7 +2109,7 @@
     const items = [...tb.children].filter(x => x !== more);
     const order = new Map(items.map((el, i) => [el, i]));
     // first to be tucked away → last
-    const PRIO = ['#btn-listen', '#btn-cmdk', '#btn-image', '#btn-footnote', '#btn-numbers', '#btn-bullets', '#btn-clear', '[data-cmd="strikeThrough"]', '[data-cmd="justifyFull"]', '[data-cmd="justifyRight"]',
+    const PRIO = ['#btn-dict', '#btn-listen', '#btn-cmdk', '#btn-image', '#btn-footnote', '#btn-numbers', '#btn-bullets', '#btn-clear', '[data-cmd="strikeThrough"]', '[data-cmd="justifyFull"]', '[data-cmd="justifyRight"]',
       '[data-cmd="justifyCenter"]', '[data-cmd="justifyLeft"]', '#sel-size', '#btn-scene', '#btn-comment', '#sel-block', '#sel-font'];   // B, I and U always stay (beta, 27 Oct: U was gone on an iPad)
     [more, pop].forEach(el => el.addEventListener('mousedown', e => { if (!e.target.closest('select')) e.preventDefault(); }));
     more.onclick = () => {
@@ -4978,7 +4978,6 @@
   })();
 
   // test hooks (used by the automated checks, harmless otherwise)
-  window.__folio = { S, openProject, openDoc, copyDocForDocs, compileManuscript, flushSave, addNode, setWriter, insertCleanHTML };
   window.__unwip = { renameBook, safeRestart, weekSoFar, fmtToggle, fmtShown, startRename, typewriterActive, moveNodeTo, moveToTrash, moveToDialog, moveOut, navGo, navState: () => ({ back: NAV.back.map(x => x.id), fwd: NAV.fwd.map(x => x.id), show: NAV.show }), goneCheck, setGoneGap: ms => { goneGap = ms; },
     editStatuses: () => editStatuses(), folderWords, iconHTML, newTitleFor, statusColor, statusName, statusOptions,   // for corkboard.js
     newEventFrom: seed => editEvent(null, seed), deleteBook: p => deleteBook(p), pageTemplate: root => sheetFor(root) ? sheetTemplate(root) : '<p><br></p>',

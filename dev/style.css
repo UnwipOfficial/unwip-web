@@ -2682,27 +2682,13 @@ body.book-font .doc-synopsis, body.book-font .ol-syn, body.book-font .ck-card, b
 .ar-shape.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .ar-shape.on svg { fill: var(--accent); }
 .ar-sw { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-bottom: 8px; }
-.ar-t { width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(0,0,0,.25); background: var(--c); cursor: pointer; padding: 0; }
-.ar-t.on { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--accent); }
-.ar-tn { font-size: 12px; color: var(--muted); margin-left: 4px; }
-.ar-charges { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 5px; margin-bottom: 10px; }
-.ar-ch { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); cursor: pointer; padding: 5px; color: var(--text); display: flex; align-items: center; justify-content: center; }
-.ar-ch svg { width: 100%; height: 100%; fill: currentColor; stroke: none; }
-.ar-ch.rune svg, .ar-ch.sigil svg { fill: none; }
-.ar-ch.ar-all { font: 600 11px/1 var(--ui, inherit); color: var(--accent); }
-.ar-ch.lib svg { fill: currentColor; }
 .ar-extras { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
-.ar-ex { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; grid-template-areas: "ic n del" "t t t" "s s s"; align-items: center; gap: 4px 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-.ar-ex-ic { grid-area: ic; width: 28px; height: 28px; color: var(--text); } .ar-ex-ic svg { width: 28px; height: 28px; }
-.ar-ex-n { grid-area: n; font-size: 13px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ar-ex [data-ex-del], .ar-ex [data-sy-del] { grid-area: del; } .ar-ex .sg-rep { grid-area: t; margin: 0; font-size: 12.5px; } .ar-ex [data-sy-s] { grid-area: s; width: 100%; } .ar-ex select { grid-area: t; width: 100%; } .ar-ex input[type=range] { grid-area: s; width: 100%; }
 /* the shared symbol picker (symbols.js) */
 .sym-pick .sym-search { width: 100%; margin-bottom: 10px; }
 .sym-pick section { margin-bottom: 12px; } .sym-pick h4 { font-size: 11.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 0 0 6px; }
 .sym-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; }
 .sym-b { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 4px 5px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); cursor: pointer; font-size: 11px; line-height: 1.15; text-align: center; }
 .sym-b svg { width: 36px; height: 36px; } .sym-b:hover { border-color: var(--accent); } .sym-b.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-.ar-ch.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); color: var(--accent); }
 
 @media (max-width: 1000px) {
   .br-wrap { grid-template-columns: 150px minmax(0, 1fr); }
@@ -2735,7 +2721,6 @@ body.book-font .doc-synopsis, body.book-font .ol-syn, body.book-font .ck-card, b
 .sg-wrap h3:first-child { margin-top: 0; }
 .ar-wrap { height: 100%; min-height: 0; }
 .ar-show { overflow: auto; }
-.ar-chl { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); margin-top: 4px; }
 @media (max-width: 1000px) { .ar-wrap { height: auto; } .ar-show { position: sticky; top: 0; z-index: 2; } .ar-shield { height: 34vh; } .ar-blazon p { font-size: 15px; } }
 @media (max-width: 700px) {
   #bd-saved { display: none; }
@@ -2769,7 +2754,6 @@ html.web .lib-head { padding-top: calc(18px + env(safe-area-inset-top)); padding
   .bd-top .pl-title { min-width: 0; width: 100%; }
   .bd-extra .btn { font-size: 0; padding: 5px 8px; }
   .bd-extra .btn::first-letter { font-size: 15px; }
-  .bm-row select { grid-column: 2; width: auto !important; }
   .bm-row:not(:has(select)) .bm-what { grid-column: 1 / -1; }
   .bm-row { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
   .bm-sh { flex-wrap: wrap; }
@@ -2779,7 +2763,6 @@ html.web .lib-head { padding-top: calc(18px + env(safe-area-inset-top)); padding
 }
 @media (pointer: coarse) {
   #br-undo, #sg-undo, .gs-x { min-width: 40px; min-height: 40px; }
-  .ar-t { width: 34px; height: 34px; }
   .bd-check input, .bm-on input { width: 20px; height: 20px; }
   .mp-top .btn.small, .mp-top .icon-btn.small, .mp-top select { min-height: 36px; }
 }
@@ -3141,7 +3124,7 @@ html.m-kb-open .modal { max-height: calc(var(--vv-h, 100vh) - 16px) !important; 
 /* runes: the whole drawing area is for drawing on touch screens, not scrolling */
 .br-stage { touch-action: none; -webkit-user-select: none; user-select: none; }
 /* a picture in a chapter is never wider than the page (Build's "Add to book" pictures come with a fixed width) */
-.editor img, .pl-editor img, #split-editor img { max-width: 100%; height: auto; }
+.editor img, .pl-editor img, .sp-editor img { max-width: 100%; height: auto; }   /* the split pane is #sp-editor (it said #split-editor, which nothing is) */
 /* phones: the map's buttons are one row you swipe along, so the map itself gets the screen */
 @media (max-width: 720px) {
   .mp-top { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
@@ -4114,7 +4097,7 @@ html.bedit #binder-tree { position: relative; }
 .be-ck.on { background: var(--accent); border-color: var(--accent); }
 .be-ck.in { background: color-mix(in srgb, var(--accent) 45%, transparent); border-color: transparent; }
 .be-grip { margin-left: auto; flex: none; padding: 8px 6px 8px 14px; font-size: 20px; line-height: 1; color: var(--muted); touch-action: none; cursor: grab; }
-html.bedit .tree-row .tr-count, html.bedit .tree-row .tr-words { display: none; }
+html.bedit .tree-row .tr-count { display: none; }
 /* with a mouse (owner, 1 Nov): smaller circles and ≡, so the names keep their room */
 @media (pointer: fine) { .be-ck { width: 17px; height: 17px; font-size: 10px; } .be-grip { font-size: 16px; padding: 4px 4px 4px 10px; } }
 .tree-row.be-into { outline: 2px solid var(--accent); outline-offset: -2px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
@@ -4162,3 +4145,20 @@ html.bedit .tree-row .tr-count, html.bedit .tree-row .tr-words { display: none; 
 .pf-path { flex: 1; min-width: 0; padding: 6px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pf-head .pf-backto { color: #fff; border-color: rgba(255,255,255,.4); background: rgba(255,255,255,.12); }
 .pf-head .pf-backto + b { flex: 1; }
+
+/* Dictation mode (dictate.js): raspberry while it's on, so it never reads as Record (red) or Revise (purple) */
+.statusbar .dict-btn { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; height: 22px; padding: 0 11px 0 9px; border-radius: 999px;
+  border: 1px solid var(--line); background: transparent; color: var(--muted); font-weight: 600; font-size: 12.5px; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
+.statusbar .dict-btn svg { width: 13px; height: 13px; }
+.statusbar .dict-btn:hover { background: var(--hover, rgba(127, 127, 127, .12)); color: var(--text); }
+.statusbar .dict-btn.on { background: #c2185b; border-color: #c2185b; color: #fff; font-variant-numeric: tabular-nums; }
+.statusbar .dict-btn.on:hover { background: #a8134e; }
+#btn-dict.on { background: #c2185b; color: #fff; }
+#btn-dict.on:hover { background: #a8134e; }
+html.dictating #editor-wrap { box-shadow: inset 0 4px 0 #c2185b; }
+html.dictating #editor { caret-color: #c2185b; }
+::highlight(dictated) { text-decoration: underline 2px rgba(194, 24, 91, .45); text-underline-offset: 4px; }
+.m-fbar button.m-fdict { display: inline-flex; align-items: center; gap: 5px; font-family: var(--ui); font-weight: 600; font-size: 14px; padding: 0 10px; }
+.m-fbar button.m-fdict svg { width: 15px; height: 15px; }
+.m-fbar button.m-fdict.on { background: #c2185b; border-color: #c2185b; color: #fff; }
+html.dictating .m-phead { box-shadow: inset 0 -3px 0 #c2185b; }

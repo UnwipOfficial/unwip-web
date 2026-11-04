@@ -27,6 +27,7 @@ window.UnwipCommand = (function () {
     ['Manuscript style', 'font size spacing indent headings look', '', side('style'), inProject],
     ['Track changes (on / off)', 'suggest suggestions suggesting edits editor review word', 'Ctrl+Shift+E', () => window.UnwipTrack && window.UnwipTrack.toggle(), () => inProject() && !!window.UnwipTrack],
     ['Review suggestions', 'tracked changes accept reject editor', '', side('changes'), needDoc],
+    ['Dictation mode (on / off)', 'dictate dictation speak talk voice typing microphone mic say speech', 'F9', () => window.UnwipDictate && window.UnwipDictate.toggle(), needDoc],
     ['Read aloud', 'listen speak voice hear text to speech tts read out', 'F8', () => window.UnwipRead && window.UnwipRead.toggle(), needDoc],
     ['Send to a beta reader', 'beta reader editor critique partner word share feedback', '', () => window.UnwipReader && window.UnwipReader.send(), inProject],
     ['Bring in a reader’s feedback', 'beta reader editor word comments tracked changes import feedback', '', () => window.UnwipReader && window.UnwipReader.receive(), inProject],
