@@ -2096,6 +2096,32 @@ html.dv-on .ra-bar { bottom: 100px; }
 .hi-book i { height: 10px; background: color-mix(in srgb, var(--line) 60%, transparent); border-radius: 99px; overflow: hidden; }
 .hi-book em { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
 .hi-book b { text-align: right; font-variant-numeric: tabular-nums; }
+/* Writing history › Copy… (history.js copyPanel) */
+.hc { display: flex; flex-direction: column; gap: 10px; }
+.hc-sub { font: 700 12px var(--ui); text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-top: 6px; }
+.hc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hc-chips button { border: 1px solid var(--line); background: var(--paper); color: var(--muted); border-radius: 99px; padding: 5px 14px; font: 600 13px var(--ui); cursor: pointer; }
+.hc-chips button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.hc-pick { display: flex; flex-wrap: wrap; gap: 12px; font: 13px var(--ui); color: var(--muted); }
+.hc-pick label { display: flex; align-items: center; gap: 6px; }
+.hc-as { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.hc-opt { display: flex; gap: 9px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; cursor: pointer; font: 13.5px var(--ui); line-height: 1.35; }
+.hc-opt.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--paper)); }
+.hc-opt input { margin: 2px 0 0; accent-color: var(--accent); }
+.hc-opt small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.hc-ticks { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.hc-ck { display: flex; gap: 7px; align-items: center; font: 13px var(--ui); cursor: pointer; }
+.hc-ck input { accent-color: var(--accent); margin: 0; }
+.hc-pv { border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2, var(--paper)); max-height: 300px; overflow: auto; }
+.hc-text { margin: 0; padding: 10px 12px; font: 12.5px/1.6 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace; white-space: pre; color: var(--text); }
+.hc-text.tab { tab-size: 14; }
+.hc-pic { display: block; width: 100%; height: auto; }
+.hc-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+@media (max-width: 720px) {
+  .hc-as { grid-template-columns: 1fr; }
+  .hc-btns .btn { flex: 1 1 40%; }
+  .hc-pv { max-height: 220px; }
+}
 @media (max-width: 900px) { .hi-cards { grid-template-columns: repeat(3, 1fr); } .hi-two { grid-template-columns: 1fr; } }
 @media (max-width: 520px) { .hi-cards { grid-template-columns: repeat(2, 1fr); } .hm { --cell: 11px; --gap: 2px; } }
 
