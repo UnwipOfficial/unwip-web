@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.48.13";
-window.UNWIP_LATEST_NOTES = "- iPad and web: \"Open in another tab\" could appear with no other tab open, and \"Close it there and open here\" then got stuck. A tab the iPad had put to sleep in the background could still hold the book. Now Unwip takes the book over when that tab doesn't answer, and if the sleeping tab ever wakes, it saves and closes the book there. Leaving a book and opening it again straight away no longer trips it either.";
+window.UNWIP_VERSION = "0.48.14";
+window.UNWIP_LATEST_NOTES = "- iPad: closing Find straight after typing in it could leave the found word marked in orange. It's cleared now.\n- Main screen: in Last 14 days, the \"goal\" label could cover the number of a day just under the goal. The label now sits above the chart.\n- iPad: the buttons at the bottom of the left panel (Settings, Recent, Search, Help, Edit and + New) fit on one line again.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;

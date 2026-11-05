@@ -3503,6 +3503,9 @@
   function closeFind() { clearTimeout(findTimer); findbar.classList.add('hidden'); $('#find-count').textContent = ''; clearFindMarks(); restoreRange(); }
   function runFind(forward = true, next = true) {
     clearTimeout(findTimer);
+    // closed: never mark anything (iPad, 6 Nov: the keyboard commits a last correction in the box as it closes, which
+    // counted as typing and brought the orange back after Find was gone)
+    if (findbar.classList.contains('hidden')) { clearFindMarks(); return; }
     const t = findInput.value, count = $('#find-count');
     if (!t) { count.textContent = ''; clearFindMarks(); return; }
     const rs = findRanges(t);
@@ -3516,7 +3519,7 @@
     count.textContent = `${idx + 1} of ${rs.length}`;
   }
   // typing in the box: wait for a short pause, so backspacing over a word doesn't search after every key
-  findInput.addEventListener('input', () => { clearTimeout(findTimer); if (!findInput.value) { $('#find-count').textContent = ''; clearFindMarks(); return; } findTimer = setTimeout(() => runFind(true, false), 250); });
+  findInput.addEventListener('input', () => { clearTimeout(findTimer); if (findbar.classList.contains('hidden')) return; if (!findInput.value) { $('#find-count').textContent = ''; clearFindMarks(); return; } findTimer = setTimeout(() => runFind(true, false), 250); });
   findInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); runFind(!e.shiftKey, findState.text === findInput.value); }
     if (e.key === 'Escape') { e.preventDefault(); closeFind(); }
@@ -4134,9 +4137,11 @@
     }
     const max = Math.max(1, daily * 1.15 || 0, ...list.map(x => x.words));
     const none = list.every(x => !x.words);
-    return `<div class="chart${none ? ' chart-none' : ''}">
+    // the goal's label sits above the chart, not on its line: on the line it covered the number of a day just under the
+    // goal (owner, 6 Nov: 977 hidden behind "goal 1,000")
+    return `${daily && !none ? `<div class="chart-keyrow"><span class="chart-key"><i></i>goal ${fmt(daily)}</span></div>` : ''}<div class="chart${none ? ' chart-none' : ''}">
       ${none ? '<div class="chart-empty">Your writing days show up here as you write.</div>' : ''}
-      ${daily ? `<div class="chart-goal" style="bottom:${daily / max * 100}%"><span>goal ${fmt(daily)}</span></div>` : ''}
+      ${daily ? `<div class="chart-goal" style="bottom:${daily / max * 100}%"></div>` : ''}
       ${list.map((x, i) => `<div class="chart-bar ${daily && x.words >= daily ? 'met' : ''} ${i === list.length - 1 ? 'today' : ''}" title="${x.date}: ${fmt(x.words)} words">
         <i style="height:${Math.max(x.words ? 3 : 0, x.words / max * 100)}%">${x.words ? `<em>${x.words >= 1000 ? (x.words / 1000).toFixed(1) + 'k' : x.words}</em>` : ''}</i><span>${x.label}</span></div>`).join('')}
     </div>`;
