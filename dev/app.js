@@ -401,18 +401,49 @@
     }
   };
   const askTabs = slug => new Promise(res => { if (!TABS) return res(false); let yes = false; const h = e => { if (e.data && e.data.mine === slug) yes = true; }; TABS.addEventListener('message', h); TABS.postMessage({ who: slug }); setTimeout(() => { TABS.removeEventListener('message', h); res(yes); }, 300); });
-  function tryHold(slug) {
-    if (heldBook === slug) return Promise.resolve(true);
-    if (!(navigator.locks && navigator.locks.request)) return askTabs(slug).then(busy => { if (!busy) heldBook = slug; return !busy; });
+  // iPad (beta, 5 Nov): "already open in another tab" with no other tab. Two causes: leaving a book and opening it again
+  // straight away, before the browser had let go of this tab's own hold, and a tab iPadOS had put to sleep (or kept
+  // after an update) that still held the book and couldn't answer "close it". So a busy book is tried again for a
+  // moment before asking, and Close it there takes the book over if the other tab doesn't answer; that tab, if it ever
+  // wakes, closes the book (saving first: the save guard keeps any clash as a conflicted copy, so nothing is lost).
+  let holdId = 0, stealing = null;
+  function lockOnce(slug, steal) {
+    const id = ++holdId;
     return new Promise(res => {
-      navigator.locks.request('unwip-book:' + slug, { ifAvailable: true }, lock => {
+      let got = false;
+      navigator.locks.request('unwip-book:' + slug, steal ? { steal: true } : { ifAvailable: true }, lock => {
         if (!lock) { res(false); return; }
-        heldBook = slug; res(true);
+        got = true; heldBook = slug; holdId = id; res(true);
         return new Promise(r => { letGo = r; });
-      }).catch(() => res(true));   // locks not usable here: don't stop anyone opening their book
+      }).catch(e => {
+        if (!got) { res(true); return; }   // locks not usable here: don't stop anyone opening their book
+        if (e && e.name === 'AbortError' && holdId === id && stealing !== slug && heldBook === slug) lostBook(slug);
+      });
     });
   }
+  async function lostBook(slug) {
+    heldBook = null; letGo = null;
+    if (S.slug !== slug) return;
+    try { await leaveProject(); await showLibrary(); } catch (e) { console.error('lostBook', e); }
+    toast('This book was opened in another tab or window, so it was closed here. Your writing was saved first.', '', 9000);
+  }
+  async function tryHold(slug) {
+    if (heldBook === slug) return true;
+    if (!(navigator.locks && navigator.locks.request)) { const busy = await askTabs(slug); if (!busy) heldBook = slug; return !busy; }
+    if (await lockOnce(slug)) return true;
+    if (await askTabs(slug)) return false;   // another tab answered: it really has the book open, so ask straight away
+    for (let i = 0; i < 6; i++) {   // nobody answered: this tab's own hold can take a moment to go after leaving the book
+      await new Promise(r => setTimeout(r, 200));
+      if (await lockOnce(slug)) return true;
+    }
+    return false;
+  }
   function releaseBook() { if (letGo) letGo(); letGo = null; heldBook = null; }
+  async function takeOver(slug) {
+    if (!(navigator.locks && navigator.locks.request)) return false;
+    stealing = slug;
+    try { return await lockOnce(slug, true); } finally { setTimeout(() => { if (stealing === slug) stealing = null; }, 1000); }
+  }
   async function holdBook(slug) {
     if (!api.web) return true;
     if (heldBook && heldBook !== slug) releaseBook();
@@ -422,8 +453,10 @@
     if (!v) return false;
     let refused = false; const h = e => { if (e.data && e.data.unsaved === slug) refused = true; };
     if (TABS) { TABS.addEventListener('message', h); TABS.postMessage({ close: slug }); }
-    for (let i = 0; i < 20 && !refused; i++) { await new Promise(r => setTimeout(r, 250)); if (await tryHold(slug)) { if (TABS) TABS.removeEventListener('message', h); return true; } }
+    for (let i = 0; i < 20 && !refused; i++) { await new Promise(r => setTimeout(r, 250)); if (heldBook === slug || (navigator.locks && navigator.locks.request ? await lockOnce(slug) : await tryHold(slug))) { if (TABS) TABS.removeEventListener('message', h); return true; } }
     if (TABS) TABS.removeEventListener('message', h);
+    // no answer at all: a tab the iPad has put to sleep can't let go by itself, so take the book over
+    if (!refused && await takeOver(slug)) return true;
     if (refused) { await modal({ title: 'Not yet', body: '<p>The other tab has writing it hasn’t been able to save yet, so it’s keeping the book open. Go to that tab: the bar at the top says what’s wrong.</p>', buttons: [{ label: 'OK', value: true, kind: 'primary' }] }); return false; }
     await modal({ title: 'Still open in the other tab', body: '<p>The other tab didn’t let go of the book. Close that tab (or go back to its library), then try again.</p>', buttons: [{ label: 'OK', value: true, kind: 'primary' }] });
     return false;

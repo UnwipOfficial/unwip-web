@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.48.12";
-window.UNWIP_LATEST_NOTES = "- Dictate now listens by itself on an iPhone, iPad or Mac in Safari: tap Dictate and start talking, and your words go in at the cursor. What it's still hearing shows in a small box at the top. The first time, your device asks to use the microphone. It uses Apple's own speech recognition, the same as the keyboard's mic, so Unwip itself still has no AI. On a PC, use Windows+H as before.";
+window.UNWIP_VERSION = "0.48.13";
+window.UNWIP_LATEST_NOTES = "- iPad and web: \"Open in another tab\" could appear with no other tab open, and \"Close it there and open here\" then got stuck. A tab the iPad had put to sleep in the background could still hold the book. Now Unwip takes the book over when that tab doesn't answer, and if the sleeping tab ever wakes, it saves and closes the book there. Leaving a book and opening it again straight away no longer trips it either.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
