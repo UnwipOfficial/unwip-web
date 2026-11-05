@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.48.11";
-window.UNWIP_LATEST_NOTES = "- Toolbar: the scene break button now shows * * *, so it no longer looks like the \u22ef button next to it. Same on the phone's formatting row.";
+window.UNWIP_VERSION = "0.48.12";
+window.UNWIP_LATEST_NOTES = "- Dictate now listens by itself on an iPhone, iPad or Mac in Safari: tap Dictate and start talking, and your words go in at the cursor. What it's still hearing shows in a small box at the top. The first time, your device asks to use the microphone. It uses Apple's own speech recognition, the same as the keyboard's mic, so Unwip itself still has no AI. On a PC, use Windows+H as before.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
