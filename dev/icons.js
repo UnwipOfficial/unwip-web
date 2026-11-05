@@ -30,6 +30,7 @@ window.ICONS = (function () {
     alignCenter: svg('<path d="M4 6h16M7 10h10M4 14h16M7 18h10"/>'),
     alignRight: svg('<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>'),
     alignJustify: svg('<path d="M4 6h16M4 10h16M4 14h16M4 18h16"/>'),
+    sceneBreak: svg('<path d="M4.20 8.70L4.20 15.30M1.34 10.35L7.06 13.65M7.06 10.35L1.34 13.65M12.00 8.70L12.00 15.30M9.14 10.35L14.86 13.65M14.86 10.35L9.14 13.65M19.80 8.70L19.80 15.30M16.94 10.35L22.66 13.65M22.66 10.35L16.94 13.65" stroke-width="1.5"/>'),   // three asterisks: the toolbar's scene break, so it isn't mistaken for ⋯
     scene: svg('<circle cx="6" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="18" cy="12" r="1.2" fill="currentColor"/>'),
     clear: svg('<path d="M6 4h12M12 4l-3 16"/><path d="M15 15l5 5M20 15l-5 5"/>'),
     copy: svg('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>'),

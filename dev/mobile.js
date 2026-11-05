@@ -114,7 +114,7 @@ window.UnwipMobile = (function () {
     <button data-b="p" class="m-fwide">Body</button><button data-b="h1" class="m-fwide">Title</button><button data-b="h2" class="m-fwide">H2</button>
     <button data-x="font" class="m-fwide m-faa" aria-label="Font and size">Aa</button>
     <span class="m-fsep"></span>
-    <button data-x="scene" aria-label="Scene break">${IC.scene}</button><button data-x="comment" aria-label="Add a comment">${IC.note}</button><button data-x="hide" aria-label="Hide keyboard">${IC.keyboard}</button>`;
+    <button data-x="scene" aria-label="Scene break">${(window.ICONS && window.ICONS.sceneBreak) || IC.scene}</button><button data-x="comment" aria-label="Add a comment">${IC.note}</button><button data-x="hide" aria-label="Hide keyboard">${IC.keyboard}</button>`;
   // the row sits just under the top bar while you type (beta, 22 Oct): iOS sometimes counts its own ^ v ✓ bar as part
   // of the keyboard and sometimes not, and never says which, so a row above the keyboard was either covered or left
   // floating. Up here it takes its own space: the page (title included) starts below it.

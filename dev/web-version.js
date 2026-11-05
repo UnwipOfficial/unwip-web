@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.48.10";
-window.UNWIP_LATEST_NOTES = "- Binder: an icon Unwip no longer has now shows as the usual chapter or folder icon, instead of its name in letters. An unused life-ring icon was taken out.";
+window.UNWIP_VERSION = "0.48.11";
+window.UNWIP_LATEST_NOTES = "- Toolbar: the scene break button now shows * * *, so it no longer looks like the \u22ef button next to it. Same on the phone's formatting row.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
