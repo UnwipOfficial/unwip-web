@@ -141,8 +141,9 @@ window.UnwipSide = (function () {
     styleBefore = JSON.parse(JSON.stringify(S.project.style));
     const f = await U.styleForm();
     box.innerHTML = `<p class="side-lead">Your manuscript’s look. Changes show on the page straight away and are saved with the project.</p>
-      ${window.UnwipBookFont ? '<button class="btn small" id="side-bookfont" type="button" style="margin-bottom:10px">Font for the whole book…</button>' : ''}`;
+      <div class="side-whole">${window.UnwipBookFont ? '<button class="btn small" id="side-bookfont" type="button">Font for the whole book…</button>' : ''}${window.UnwipTextLayout ? '<button class="btn small" id="side-layout" type="button">Text layout…</button>' : ''}</div>`;
     { const b = $('#side-bookfont', box); if (b) b.onclick = async () => { await window.UnwipBookFont.open(); renderStyle(); }; }
+    { const b = $('#side-layout', box); if (b) b.onclick = async () => { await window.UnwipTextLayout.open(); renderStyle(); }; }
     box.appendChild(f.body);
     const foot = document.createElement('div'); foot.className = 'side-foot';
     foot.innerHTML = `<button class="btn small ghost" id="side-style-undo" disabled>Put it back how it was</button>`;

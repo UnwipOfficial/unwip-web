@@ -3344,7 +3344,8 @@
         <label class="check full"><input type="checkbox" id="g-quotes" ${cfg.quotes !== false ? 'checked' : ''}> Show quotes from writers (front page, writer mode, sprints, goals)</label>
         <div class="section-label">Appearance</div>
         <div class="field full"><div class="set-row"><button class="btn" id="s-themes" type="button">Themes &amp; colours…</button><button class="btn" id="s-typing" type="button">Typewriter &amp; animations…</button></div>
-          <div class="set-row" style="margin-top:8px"><button class="btn" id="s-bookfont" type="button">Font for the whole book…</button><button class="btn" id="s-import" type="button">Import font files…</button></div>
+          <div class="set-row" style="margin-top:8px"><button class="btn" id="s-bookfont" type="button">Font for the whole book…</button><button class="btn" id="s-layout" type="button">Text layout…</button></div>
+          <div class="set-row" style="margin-top:8px"><button class="btn" id="s-import" type="button">Import font files…</button></div>
           <div class="hint">The font while you write: side panel › Style (or the font box in the toolbar). Fonts for print: Export › Preview › Paperback (Book design).</div></div>
         <label class="check full"><input type="checkbox" id="g-binderauto" ${(window.UnwipSide && window.UnwipSide.binderAuto()) ? 'checked' : ''}> <span>Hide the left panel while Revise or the side panel is open <span class="hint" style="display:inline;margin:0">(it comes back when you close them)</span></span></label>
         <div class="section-label">Name suggestions</div>
@@ -3383,6 +3384,7 @@
       b.onclick = () => l.scrollIntoView({ behavior: 'smooth', block: 'start' }); jump.appendChild(b);
     });
     $('#s-import', body).onclick = importFonts;
+    $('#s-layout', body).onclick = () => { if (!S.project) return toast('Open a book first, then set its text layout here (you can use it for every book from there).'); body.closest('.modal-back').remove(); window.UnwipTextLayout && window.UnwipTextLayout.open(); };
     $('#s-bookfont', body).onclick = () => { if (!S.project) return toast('Open a book first, then choose its font here (you can apply it to every book from there).'); body.closest('.modal-back').remove(); window.UnwipBookFont && window.UnwipBookFont.open(); };
     // goal colours: pick a ring, then its colour (like the accent colour in Themes); saved with Save
     const gcDraft = Object.assign({}, cfg.goalColors || {}); let gcKey = 'today';

@@ -351,7 +351,9 @@ window.UnwipMobile = (function () {
     const rv = $('#btn-revise'); $('#m-revise').classList.toggle('on', !!(rv && rv.classList.contains('on')));
     const sk = $('#btn-stuck'); $('#m-stuck').classList.toggle('nudge', !!(sk && sk.classList.contains('nudge')));
   }
-  function showBinder() { mark('m-view-page', false); mark('m-view-binder', true); refreshHead(); }
+  // back to the chapter list: a side panel (Style, Revise, Comments…) belongs to the page, so it closes too (owner, 7 Nov:
+  // Style stayed open over the list)
+  function showBinder() { mark('m-view-page', false); mark('m-view-binder', true); refreshHead(); try { if (window.UnwipSide && window.UnwipSide.current()) window.UnwipSide.close(); } catch {} }
   function showPage() { mark('m-view-binder', false); mark('m-view-page', true); refreshHead(); }
   // tapping a document in the chapter list opens its page; folders open and close
   document.addEventListener('click', e => {
