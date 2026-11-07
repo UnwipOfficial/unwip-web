@@ -3,7 +3,7 @@
 // everywhere the book goes, exactly as it looks.
 //   - type "- " or "* " at the start of a line for a bullet, "1. " for a numbered list
 //   - Enter carries the list on (the next number, or another bullet); Enter on an empty item ends the list
-//   - Backspace straight after the marker takes the marker away
+//   - Backspace straight after the marker takes the marker away; straight after "- " became a bullet, it puts the "- " back
 //   - the list buttons (and Ctrl+Shift+8 / Ctrl+Shift+7) turn the chosen paragraphs into a list, or back
 window.UnwipLists = (function () {
   'use strict';
@@ -71,14 +71,28 @@ window.UnwipLists = (function () {
         editor.dispatchEvent(new Event('input', { bubbles: true })); return;
       }
       if (at >= m.len) carry = m.kind === 'b' ? BULLET : `${m.n + 1}${m.sep} `;
-    } else if (e.key === 'Backspace' && !mod && at === m.len) {      // straight after the marker: take the marker away
-      e.preventDefault(); U.S.programmatic = true; try { replaceAt(startRange(el, m.len), ''); } finally { U.S.programmatic = false; }
-      // a numbered item taken out of the list: the ones after it move up to close the gap (3. becomes 2.)
-      if (m.kind === 'n') { const nx = el.nextElementSibling; if (isNum(nx)) renumberRun(nx, m.n); }
-      editor.dispatchEvent(new Event('input', { bubbles: true }));
-    }
+    } else if (e.key === 'Backspace' && !mod && at === m.len) { e.preventDefault(); backAtMarker(el, m); }
   }, true);
+  // an iPhone or iPad keyboard may not say which key it was, so a backspace there is caught as it's about to delete
+  editor.addEventListener('beforeinput', e => {
+    if (e.inputType !== 'deleteContentBackward') return;
+    const sel = getSelection(); if (!sel.rangeCount || !sel.isCollapsed) return;
+    const el = blockOf(sel.anchorNode), m = marker(el); if (!m || caretOffsetIn(el) !== m.len) return;
+    e.preventDefault(); backAtMarker(el, m);
+  }, true);
+  // Backspace straight after the marker: a bullet that "- " or "* " just turned into goes back to what was typed
+  // (like a phone's autocorrect), otherwise the marker goes
+  let auto = null;
+  function backAtMarker(el, m) {
+    const undo = auto && auto.el === el && m.kind === 'b' ? auto.typed : ''; auto = null;
+    U.S.programmatic = true; try { replaceAt(startRange(el, m.len), undo); } finally { U.S.programmatic = false; }
+    if (undo) { const r = startRange(el, undo.length); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+    // a numbered item taken out of the list: the ones after it move up to close the gap (3. becomes 2.)
+    if (m.kind === 'n') { const nx = el.nextElementSibling; if (isNum(nx)) renumberRun(nx, m.n); }
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+  }
   editor.addEventListener('input', e => {
+    if (!U.S.programmatic) auto = null;   // anything typed after the bullet keeps it
     if (e.inputType === 'insertParagraph' && carry) {
       const want = carry; carry = null;
       const sel = getSelection(); const el = sel.rangeCount && blockOf(sel.anchorNode);
@@ -99,7 +113,7 @@ window.UnwipLists = (function () {
       const sel = getSelection(); if (!sel.rangeCount) return;
       const el = blockOf(sel.anchorNode); if (!el) return;
       const t = el.textContent || '';
-      if (/^[-*][ \u00a0]/.test(t) && caretOffsetIn(el) === 2) { U.S.programmatic = true; try { replaceAt(startRange(el, 2), BULLET); } finally { U.S.programmatic = false; } }
+      if (/^[-*][ \u00a0]/.test(t) && caretOffsetIn(el) === 2) { U.S.programmatic = true; try { replaceAt(startRange(el, 2), BULLET); } finally { U.S.programmatic = false; } auto = { el, typed: t.slice(0, 2) }; }
     }
   });
   const isNum = el => { const m = el && marker(el); return !!(m && m.kind === 'n'); };

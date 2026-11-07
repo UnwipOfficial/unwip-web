@@ -136,6 +136,8 @@ window.UnwipMobile = (function () {
   document.body.appendChild(fsheet);
   const curFont = () => { const v = ($('#sel-font') || {}).value; return v && v !== '__import' ? v : ''; };
   const curSize = () => parseFloat(($('#sel-size') || {}).value) || 12;
+  // left, centre, right and justified, the same as the PC and iPad toolbar's buttons (owner, 7 Nov: the phone had none)
+  const ALIGN = [['justifyLeft', 'alignLeft', 'Align left'], ['justifyCenter', 'alignCenter', 'Centre'], ['justifyRight', 'alignRight', 'Align right'], ['justifyFull', 'alignJustify', 'Justify']];
   const SIZES = [8, 9, 10, 10.5, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72];
   // the phone's own list: your starred fonts, Unwip's fonts, imported ones, then the ones this iPhone or iPad has
   function fontGroups() {
@@ -149,6 +151,7 @@ window.UnwipMobile = (function () {
   function drawFontSheet() {
     const f = curFont(), z = curSize();
     fsheet.innerHTML = `<div class="m-fs-size"><span>Size</span><button data-z="-1" aria-label="Smaller">A−</button><b>${z} pt</b><button data-z="1" aria-label="Bigger">A+</button><button data-z="x" class="m-fs-done">Done</button></div>
+      <div class="m-fs-align"><span>Align</span>${ALIGN.map(([c, ic, l]) => { let on = false; try { on = document.queryCommandState(c); } catch {} return `<button data-al="${c}" class="${on ? 'on' : ''}" aria-label="${l}">${(window.ICONS && window.ICONS[ic]) || l}</button>`; }).join('')}</div>
       <div class="m-fs-list">${fontGroups().map(([label, names]) => (label ? `<div class="m-fs-group">${U.esc(label)}</div>` : '') + names.map(n => {
         const on = n === f || (window.FolioFonts.SAME[f] === n);
         const away = on && n === f && !window.FolioFonts.canShow(n) && !window.FolioFonts.SAME[f];
@@ -163,6 +166,7 @@ window.UnwipMobile = (function () {
   }
   const sheetAct = b => {
     if (b.dataset.f) { setSel('#sel-font', b.dataset.f); setTimeout(drawFontSheet, 30); }
+    else if (b.dataset.al) { click(`.toolbar [data-cmd="${b.dataset.al}"]`); U.scheduleSave(); setTimeout(drawFontSheet, 30); }
     else if (b.dataset.z === 'x') toggleFontSheet(false);
     else if (b.dataset.z) { const z = curSize(); const i = SIZES.findIndex(v => v >= z); const n = b.dataset.z === '1' ? SIZES[Math.min(SIZES.length - 1, SIZES[i] > z ? i : i + 1)] : SIZES[Math.max(0, (i < 0 ? SIZES.length : i) - 1)]; setSel('#sel-size', n); setTimeout(drawFontSheet, 30); }
   };

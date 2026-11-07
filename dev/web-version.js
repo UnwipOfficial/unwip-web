@@ -1,8 +1,8 @@
 window.UNWIP_DEV = true;
 (function () { const P = 'dev:', S = Storage.prototype, g = S.getItem, s = S.setItem, r = S.removeItem;
   S.getItem = function (k) { return g.call(this, P + k); }; S.setItem = function (k, v) { return s.call(this, P + k, v); }; S.removeItem = function (k) { return r.call(this, P + k); }; })();
-window.UNWIP_VERSION = "0.48.14";
-window.UNWIP_LATEST_NOTES = "- iPad: closing Find straight after typing in it could leave the found word marked in orange. It's cleared now.\n- Main screen: in Last 14 days, the \"goal\" label could cover the number of a day just under the goal. The label now sits above the chart.\n- iPad: the buttons at the bottom of the left panel (Settings, Recent, Search, Help, Edit and + New) fit on one line again.";
+window.UNWIP_VERSION = "0.48.15";
+window.UNWIP_LATEST_NOTES = "- Typing \"- \" at the start of a line still turns it into a bullet, but pressing Backspace straight after puts your \"- \" back, so you can start a line with a plain dash.\n- iPhone: tap Aa on the formatting row to align text left, centre, right or justified.";
 if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 (function () {
   if (location.protocol !== 'https:') return;
